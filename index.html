@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ratio Backspread Scanner</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+  <script src="https://unpkg.com/lucide-react@0.263.1/dist/umd/lucide-react.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+  <style>
+    body { margin: 0; background: #0f172a; }
+    /* Custom dark overrides for Tailwind v2 classes */
+    .bg-slate-950 { background-color: #020617; }
+    .bg-slate-900 { background-color: #0f172a; }
+    .bg-slate-800 { background-color: #1e293b; }
+    .border-slate-800 { border-color: #1e293b; }
+    .border-slate-700 { border-color: #334155; }
+    .border-slate-600 { border-color: #475569; }
+    .text-slate-100 { color: #f1f5f9; }
+    .text-slate-200 { color: #e2e8f0; }
+    .text-slate-300 { color: #cbd5e1; }
+    .text-slate-400 { color: #94a3b8; }
+    .text-slate-500 { color: #64748b; }
+    .hover\:text-slate-200:hover { color: #e2e8f0; }
+    .hover\:text-slate-200:hover { color: #e2e8f0; }
+    .hover\:border-slate-400:hover { border-color: #94a3b8; }
+    .hover\:bg-slate-700:hover { background-color: #334155; }
+    .hover\:bg-slate-800\/50:hover { background-color: rgba(30,41,59,0.5); }
+    .border-slate-800\/50 { border-color: rgba(30,41,59,0.5); }
+    .bg-emerald-500\/5 { background-color: rgba(16,185,129,0.05); }
+    .bg-emerald-500\/15 { background-color: rgba(16,185,129,0.15); }
+    .bg-emerald-500\/20 { background-color: rgba(16,185,129,0.2); }
+    .border-emerald-500\/20 { border-color: rgba(16,185,129,0.2); }
+    .text-emerald-400 { color: #34d399; }
+    .text-emerald-300 { color: #6ee7b7; }
+    .bg-red-500\/5 { background-color: rgba(239,68,68,0.05); }
+    .bg-red-500\/10 { background-color: rgba(239,68,68,0.1); }
+    .bg-red-500\/15 { background-color: rgba(239,68,68,0.15); }
+    .bg-red-500\/20 { background-color: rgba(239,68,68,0.2); }
+    .border-red-500\/20 { border-color: rgba(239,68,68,0.2); }
+    .border-red-500\/30 { border-color: rgba(239,68,68,0.3); }
+    .text-red-400 { color: #f87171; }
+    .text-red-300 { color: #fca5a5; }
+    .bg-blue-500\/10 { background-color: rgba(59,130,246,0.1); }
+    .bg-blue-500\/20 { background-color: rgba(59,130,246,0.2); }
+    .border-blue-500\/30 { border-color: rgba(59,130,246,0.3); }
+    .border-blue-400 { border-color: #60a5fa; }
+    .text-blue-400 { color: #60a5fa; }
+    .text-blue-300 { color: #93c5fd; }
+    .bg-yellow-500\/20 { background-color: rgba(234,179,8,0.2); }
+    .text-yellow-400 { color: #facc15; }
+    .text-yellow-300 { color: #fde047; }
+    .bg-purple-500\/20 { background-color: rgba(168,85,247,0.2); }
+    .text-purple-400 { color: #c084fc; }
+    .accent-blue-500 { accent-color: #3b82f6; }
+    .backdrop-blur-sm { backdrop-filter: blur(4px); }
+    .bg-black\/60 { background-color: rgba(0,0,0,0.6); }
+    input[type="range"] { -webkit-appearance: auto; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #1e293b; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useMemo, useCallback, useEffect } = React;
+    const {
+      BarChart, Bar, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid,
+      Tooltip, ResponsiveContainer, Cell, Legend
+    } = Recharts;
+
+    // Lucide icons
+    const Icons = window.lucideReact || {};
+    const Upload = Icons.Upload || (() => React.createElement('span', null, '\u2B06'));
+    const XIcon = Icons.X || (() => React.createElement('span', null, '\u2716'));
+    const ChevronUp = Icons.ChevronUp || (() => React.createElement('span', null, '\u25B2'));
+    const ChevronDown = Icons.ChevronDown || (() => React.createElement('span', null, '\u25BC'));
+    const Filter = Icons.Filter || (() => React.createElement('span', null, '\u29D6'));
+    const TrendingUp = Icons.TrendingUp || (() => React.createElement('span', null, '\u2197'));
+    const DollarSign = Icons.DollarSign || (() => React.createElement('span', null, '$'));
+    const Target = Icons.Target || (() => React.createElement('span', null, '\u25CE'));
+    const Zap = Icons.Zap || (() => React.createElement('span', null, '\u26A1'));
+    const RotateCcw = Icons.RotateCcw || (() => React.createElement('span', null, '\u21BA'));
+
+    // ══════════════════════════════════════════════════════════════
+    // Demo Data — fear-regime: calls are cheap, puts are expensive
+    // ══════════════════════════════════════════════════════════════
+    const DEMO_DATA = [
+      { ticker: "SPY", direction: "call", long_strike: 620, long_exp: "2026-04-17", long_price: 0.45, long_qty: 12, short_strike: 585, short_exp: "2026-03-06", short_price: 5.40, short_qty: 1, ratio: "12:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 82.5, equidist_ratio: 4.8, iv_rv: 0.72, hist_move_yield: 18, tail_payoff: 4200, net_delta: 12.4, net_vega: 35.2, net_theta: -1.85, score: 88.2 },
+      { ticker: "SPY", direction: "call", long_strike: 630, long_exp: "2026-04-17", long_price: 0.18, long_qty: 30, short_strike: 585, short_exp: "2026-03-06", short_price: 5.40, short_qty: 1, ratio: "30:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 91.3, equidist_ratio: 6.2, iv_rv: 0.65, hist_move_yield: 32, tail_payoff: 6800, net_delta: 8.1, net_vega: 42.0, net_theta: -2.10, score: 92.1 },
+      { ticker: "SPY", direction: "put", long_strike: 540, long_exp: "2026-04-17", long_price: 3.20, long_qty: 3, short_strike: 575, short_exp: "2026-03-06", short_price: 9.60, short_qty: 1, ratio: "3:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 38.4, equidist_ratio: 1.4, iv_rv: 1.15, hist_move_yield: 5, tail_payoff: 1200, net_delta: -18.5, net_vega: 22.0, net_theta: -0.95, score: 52.3 },
+      { ticker: "SPY", direction: "put", long_strike: 530, long_exp: "2026-04-17", long_price: 2.40, long_qty: 4, short_strike: 575, short_exp: "2026-03-06", short_price: 9.60, short_qty: 1, ratio: "4:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 42.1, equidist_ratio: 1.6, iv_rv: 1.10, hist_move_yield: 7, tail_payoff: 1800, net_delta: -22.1, net_vega: 28.0, net_theta: -1.20, score: 55.8 },
+      { ticker: "QQQ", direction: "call", long_strike: 540, long_exp: "2026-04-17", long_price: 0.52, long_qty: 10, short_strike: 505, short_exp: "2026-03-06", short_price: 5.20, short_qty: 1, ratio: "10:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 78.9, equidist_ratio: 4.2, iv_rv: 0.78, hist_move_yield: 15, tail_payoff: 3500, net_delta: 10.8, net_vega: 30.5, net_theta: -1.65, score: 84.7 },
+      { ticker: "QQQ", direction: "call", long_strike: 550, long_exp: "2026-05-15", long_price: 0.85, long_qty: 6, short_strike: 505, short_exp: "2026-03-06", short_price: 5.20, short_qty: 1, ratio: "6:1", net_premium: -10.00, premium_neutral_pct: 2.0, cheapness: 71.2, equidist_ratio: 3.5, iv_rv: 0.82, hist_move_yield: 12, tail_payoff: 2800, net_delta: 14.2, net_vega: 38.0, net_theta: -1.45, score: 79.5 },
+      { ticker: "QQQ", direction: "put", long_strike: 460, long_exp: "2026-04-17", long_price: 2.80, long_qty: 4, short_strike: 495, short_exp: "2026-03-06", short_price: 11.20, short_qty: 1, ratio: "4:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 35.6, equidist_ratio: 1.3, iv_rv: 1.20, hist_move_yield: 4, tail_payoff: 980, net_delta: -20.4, net_vega: 18.0, net_theta: -0.88, score: 48.2 },
+      { ticker: "TSLA", direction: "call", long_strike: 450, long_exp: "2026-04-17", long_price: 1.20, long_qty: 8, short_strike: 390, short_exp: "2026-03-06", short_price: 9.60, short_qty: 1, ratio: "8:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 74.8, equidist_ratio: 3.8, iv_rv: 0.68, hist_move_yield: 22, tail_payoff: 5200, net_delta: 15.6, net_vega: 52.0, net_theta: -2.80, score: 82.4 },
+      { ticker: "TSLA", direction: "call", long_strike: 480, long_exp: "2026-05-15", long_price: 0.35, long_qty: 20, short_strike: 390, short_exp: "2026-03-06", short_price: 7.00, short_qty: 1, ratio: "20:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 88.5, equidist_ratio: 5.5, iv_rv: 0.58, hist_move_yield: 45, tail_payoff: 8500, net_delta: 6.2, net_vega: 48.0, net_theta: -2.40, score: 90.8 },
+      { ticker: "TSLA", direction: "put", long_strike: 280, long_exp: "2026-04-17", long_price: 2.10, long_qty: 5, short_strike: 370, short_exp: "2026-03-06", short_price: 10.50, short_qty: 1, ratio: "5:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 45.2, equidist_ratio: 1.8, iv_rv: 1.05, hist_move_yield: 8, tail_payoff: 2100, net_delta: -25.3, net_vega: 32.0, net_theta: -1.55, score: 58.9 },
+      { ticker: "AAPL", direction: "call", long_strike: 270, long_exp: "2026-04-17", long_price: 0.65, long_qty: 8, short_strike: 248, short_exp: "2026-03-06", short_price: 5.20, short_qty: 1, ratio: "8:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 72.1, equidist_ratio: 3.6, iv_rv: 0.80, hist_move_yield: 14, tail_payoff: 2900, net_delta: 11.2, net_vega: 28.0, net_theta: -1.35, score: 78.4 },
+      { ticker: "AAPL", direction: "put", long_strike: 210, long_exp: "2026-04-17", long_price: 1.80, long_qty: 3, short_strike: 240, short_exp: "2026-03-06", short_price: 5.40, short_qty: 1, ratio: "3:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 40.8, equidist_ratio: 1.5, iv_rv: 1.12, hist_move_yield: 6, tail_payoff: 1100, net_delta: -15.8, net_vega: 20.0, net_theta: -0.92, score: 53.1 },
+      { ticker: "NVDA", direction: "call", long_strike: 170, long_exp: "2026-04-17", long_price: 0.90, long_qty: 7, short_strike: 142, short_exp: "2026-03-06", short_price: 6.30, short_qty: 1, ratio: "7:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 76.3, equidist_ratio: 4.1, iv_rv: 0.74, hist_move_yield: 20, tail_payoff: 4100, net_delta: 13.5, net_vega: 45.0, net_theta: -2.20, score: 83.6 },
+      { ticker: "NVDA", direction: "call", long_strike: 180, long_exp: "2026-05-15", long_price: 0.40, long_qty: 15, short_strike: 142, short_exp: "2026-03-06", short_price: 6.00, short_qty: 1, ratio: "15:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 85.7, equidist_ratio: 5.0, iv_rv: 0.62, hist_move_yield: 35, tail_payoff: 7200, net_delta: 7.8, net_vega: 50.0, net_theta: -2.50, score: 89.3 },
+      { ticker: "GLD", direction: "call", long_strike: 300, long_exp: "2026-05-15", long_price: 0.55, long_qty: 9, short_strike: 275, short_exp: "2026-03-06", short_price: 4.95, short_qty: 1, ratio: "9:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 68.4, equidist_ratio: 3.2, iv_rv: 0.85, hist_move_yield: 11, tail_payoff: 2200, net_delta: 9.5, net_vega: 22.0, net_theta: -1.10, score: 74.2 },
+      { ticker: "GLD", direction: "put", long_strike: 240, long_exp: "2026-04-17", long_price: 1.60, long_qty: 3, short_strike: 268, short_exp: "2026-03-06", short_price: 4.80, short_qty: 1, ratio: "3:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 44.5, equidist_ratio: 1.7, iv_rv: 1.08, hist_move_yield: 6, tail_payoff: 950, net_delta: -12.8, net_vega: 16.0, net_theta: -0.78, score: 56.4 },
+      { ticker: "AMD", direction: "call", long_strike: 155, long_exp: "2026-04-17", long_price: 0.72, long_qty: 7, short_strike: 128, short_exp: "2026-03-06", short_price: 5.04, short_qty: 1, ratio: "7:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 70.5, equidist_ratio: 3.4, iv_rv: 0.76, hist_move_yield: 16, tail_payoff: 3400, net_delta: 12.0, net_vega: 38.0, net_theta: -1.90, score: 77.8 },
+      { ticker: "MU", direction: "call", long_strike: 120, long_exp: "2026-05-15", long_price: 0.48, long_qty: 10, short_strike: 98, short_exp: "2026-03-06", short_price: 4.80, short_qty: 1, ratio: "10:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 73.8, equidist_ratio: 3.9, iv_rv: 0.70, hist_move_yield: 19, tail_payoff: 3800, net_delta: 9.8, net_vega: 34.0, net_theta: -1.70, score: 80.1 },
+    ];
+
+    const fmt$ = (v) => v == null ? "\u2014" : (v < 0 ? `-$${Math.abs(v).toLocaleString()}` : `$${v.toLocaleString()}`);
+    const fmtPct = (v) => v == null ? "\u2014" : `${v.toFixed(1)}%`;
+    const fmtNum = (v, d = 1) => v == null ? "\u2014" : v.toFixed(d);
+
+    const CALL_COLOR = "#10b981";
+    const PUT_COLOR = "#ef4444";
+    const CHART_COLORS = { call: CALL_COLOR, put: PUT_COLOR };
+
+    function BackspreadDashboard() {
+      const [rawData, setRawData] = useState(DEMO_DATA);
+      const [sortKey, setSortKey] = useState("score");
+      const [sortDir, setSortDir] = useState("desc");
+      const [selectedTrade, setSelectedTrade] = useState(null);
+      const [dragOver, setDragOver] = useState(false);
+      const [error, setError] = useState(null);
+      const [filters, setFilters] = useState({
+        tickers: [],
+        direction: "both",
+        minCheapness: 0,
+        minScore: 0,
+      });
+
+      const availableTickers = useMemo(() =>
+        [...new Set(rawData.map(d => d.ticker))].sort(),
+        [rawData]
+      );
+
+      const filteredData = useMemo(() => {
+        let data = rawData.filter(d => {
+          if (filters.tickers.length > 0 && !filters.tickers.includes(d.ticker)) return false;
+          if (filters.direction !== "both" && d.direction !== filters.direction) return false;
+          if (d.cheapness < filters.minCheapness) return false;
+          if (d.score < filters.minScore) return false;
+          return true;
+        });
+        data.sort((a, b) => {
+          const av = a[sortKey] ?? 0;
+          const bv = b[sortKey] ?? 0;
+          if (typeof av === "string") return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+          return sortDir === "asc" ? av - bv : bv - av;
+        });
+        return data;
+      }, [rawData, filters, sortKey, sortDir]);
+
+      const stats = useMemo(() => {
+        if (filteredData.length === 0) return { count: 0, avgCheap: 0, bestScore: 0, bestTail: 0 };
+        return {
+          count: filteredData.length,
+          avgCheap: filteredData.reduce((s, d) => s + d.cheapness, 0) / filteredData.length,
+          bestScore: Math.max(...filteredData.map(d => d.score)),
+          bestTail: Math.max(...filteredData.map(d => d.tail_payoff || 0)),
+        };
+      }, [filteredData]);
+
+      const histogramData = useMemo(() => {
+        const bins = Array.from({ length: 10 }, (_, i) => ({
+          range: `${i * 10}-${(i + 1) * 10}`,
+          count: 0, calls: 0, puts: 0,
+        }));
+        filteredData.forEach(d => {
+          const idx = Math.min(Math.floor(d.cheapness / 10), 9);
+          bins[idx].count++;
+          if (d.direction === "call") bins[idx].calls++;
+          else bins[idx].puts++;
+        });
+        return bins;
+      }, [filteredData]);
+
+      const scatterData = useMemo(() =>
+        filteredData.map(d => ({
+          cheapness: d.cheapness,
+          score: d.score,
+          direction: d.direction,
+          ticker: d.ticker,
+          tail: d.tail_payoff || 0,
+        })),
+        [filteredData]
+      );
+
+      const handleSort = useCallback((key) => {
+        setSortKey(prev => {
+          if (prev === key) {
+            setSortDir(d => d === "asc" ? "desc" : "asc");
+            return key;
+          }
+          setSortDir("desc");
+          return key;
+        });
+      }, []);
+
+      const toggleTicker = useCallback((t) => {
+        setFilters(f => ({
+          ...f,
+          tickers: f.tickers.includes(t)
+            ? f.tickers.filter(x => x !== t)
+            : [...f.tickers, t],
+        }));
+      }, []);
+
+      const handleFile = useCallback((file) => {
+        setError(null);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const json = JSON.parse(e.target.result);
+            const arr = Array.isArray(json) ? json : [json];
+            if (arr.length === 0 || !arr[0].ticker) {
+              setError("Invalid JSON: expected array of trade objects with 'ticker' field");
+              return;
+            }
+            setRawData(arr);
+            setFilters({ tickers: [], direction: "both", minCheapness: 0, minScore: 0 });
+          } catch (err) {
+            setError("Failed to parse JSON file");
+          }
+        };
+        reader.readAsText(file);
+      }, []);
+
+      const handleDrop = useCallback((e) => {
+        e.preventDefault();
+        setDragOver(false);
+        const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (file) handleFile(file);
+      }, [handleFile]);
+
+      useEffect(() => {
+        const handler = (e) => { if (e.key === "Escape") setSelectedTrade(null); };
+        window.addEventListener("keydown", handler);
+        return () => window.removeEventListener("keydown", handler);
+      }, []);
+
+      const SortIcon = ({ col }) => {
+        if (sortKey !== col) return <ChevronDown style={{width:12,height:12,opacity:0.3,display:'inline',marginLeft:4,verticalAlign:'middle'}} />;
+        return sortDir === "asc"
+          ? <ChevronUp style={{width:12,height:12,display:'inline',marginLeft:4,color:'#60a5fa',verticalAlign:'middle'}} />
+          : <ChevronDown style={{width:12,height:12,display:'inline',marginLeft:4,color:'#60a5fa',verticalAlign:'middle'}} />;
+      };
+
+      const cardData = [
+        { label: "Opportunities", value: stats.count, icon: <Target style={{width:20,height:20}} />, color: "#60a5fa" },
+        { label: "Avg Cheapness", value: fmtNum(stats.avgCheap), icon: <TrendingUp style={{width:20,height:20}} />, color: "#34d399" },
+        { label: "Best Score", value: fmtNum(stats.bestScore), icon: <Zap style={{width:20,height:20}} />, color: "#facc15" },
+        { label: "Best Tail Payoff", value: fmt$(stats.bestTail), icon: <DollarSign style={{width:20,height:20}} />, color: "#c084fc" },
+      ];
+
+      const columns = [
+        { key: "ticker", label: "Ticker", align: "left" },
+        { key: "direction", label: "Dir", align: "center" },
+        { key: "long_strike", label: "Long Leg", align: "left" },
+        { key: "short_strike", label: "Short Leg", align: "left" },
+        { key: "ratio", label: "Ratio", align: "center" },
+        { key: "net_premium", label: "Net $", align: "right" },
+        { key: "cheapness", label: "Cheap", align: "right" },
+        { key: "tail_payoff", label: "Tail $", align: "right" },
+        { key: "score", label: "Score", align: "right" },
+      ];
+
+      return (
+        <div style={{minHeight:'100vh',backgroundColor:'#020617',color:'#f1f5f9',padding:16,fontFamily:'-apple-system,BlinkMacSystemFont,sans-serif'}}>
+          {/* Header */}
+          <div style={{display:'flex',flexWrap:'wrap',alignItems:'center',justifyContent:'space-between',gap:16,marginBottom:24}}>
+            <div>
+              <h1 style={{fontSize:24,fontWeight:'bold',letterSpacing:'-0.025em',display:'flex',alignItems:'center',gap:8,margin:0}}>
+                <Zap style={{width:24,height:24,color:'#facc15'}} />
+                Ratio Backspread Scanner
+              </h1>
+              <p style={{fontSize:13,color:'#94a3b8',marginTop:4}}>
+                Taleb-style convexity harvesting — cheap wings, premium-neutral financing
+              </p>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:12}}>
+              <label
+                style={{display:'flex',alignItems:'center',gap:8,padding:'8px 16px',borderRadius:8,border:`2px dashed ${dragOver ? '#60a5fa' : '#475569'}`,cursor:'pointer',backgroundColor:dragOver ? 'rgba(59,130,246,0.1)' : 'transparent',transition:'all 0.2s'}}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={handleDrop}
+              >
+                <Upload style={{width:16,height:16}} />
+                <span style={{fontSize:14}}>Load JSON</span>
+                <input type="file" accept=".json" style={{display:'none'}} onChange={(e) => e.target.files && e.target.files[0] && handleFile(e.target.files[0])} />
+              </label>
+              <button onClick={() => { setRawData(DEMO_DATA); setFilters({ tickers: [], direction: "both", minCheapness: 0, minScore: 0 }); setError(null); }}
+                style={{display:'flex',alignItems:'center',gap:4,padding:'8px 12px',borderRadius:8,backgroundColor:'#1e293b',border:'none',color:'#f1f5f9',fontSize:14,cursor:'pointer'}}>
+                <RotateCcw style={{width:12,height:12}} /> Demo
+              </button>
+            </div>
+          </div>
+
+          {error && (
+            <div style={{marginBottom:16,padding:12,borderRadius:8,backgroundColor:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.3)',color:'#fca5a5',fontSize:14,display:'flex',alignItems:'center',gap:8}}>
+              <XIcon style={{width:16,height:16,flexShrink:0}} />
+              {error}
+              <button onClick={() => setError(null)} style={{marginLeft:'auto',color:'#f87171',background:'none',border:'none',cursor:'pointer'}}>dismiss</button>
+            </div>
+          )}
+
+          {/* Summary Cards */}
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:16,marginBottom:24}}>
+            {cardData.map(card => (
+              <div key={card.label} style={{backgroundColor:'#0f172a',border:'1px solid #1e293b',borderRadius:12,padding:16}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,color:'#94a3b8',fontSize:11,textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:8}}>
+                  <span style={{color:card.color}}>{card.icon}</span>
+                  {card.label}
+                </div>
+                <div style={{fontSize:24,fontWeight:'bold'}}>{card.value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Filter Bar */}
+          <div style={{backgroundColor:'#0f172a',border:'1px solid #1e293b',borderRadius:12,padding:16,marginBottom:24}}>
+            <div style={{display:'flex',flexWrap:'wrap',alignItems:'center',gap:16}}>
+              <div style={{display:'flex',alignItems:'center',gap:4,color:'#94a3b8',fontSize:13}}>
+                <Filter style={{width:16,height:16}} /> Filters
+              </div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                {availableTickers.map(t => (
+                  <button key={t} onClick={() => toggleTicker(t)}
+                    style={{padding:'2px 8px',borderRadius:4,fontSize:12,fontWeight:500,cursor:'pointer',border:'1px solid',
+                      backgroundColor: filters.tickers.includes(t) || filters.tickers.length === 0 ? 'rgba(59,130,246,0.2)' : '#1e293b',
+                      color: filters.tickers.includes(t) || filters.tickers.length === 0 ? '#93c5fd' : '#64748b',
+                      borderColor: filters.tickers.includes(t) || filters.tickers.length === 0 ? 'rgba(59,130,246,0.3)' : '#334155'}}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+              <div style={{display:'flex',borderRadius:8,overflow:'hidden',border:'1px solid #334155'}}>
+                {["both","call","put"].map(d => (
+                  <button key={d} onClick={() => setFilters(f => ({ ...f, direction: d }))}
+                    style={{padding:'4px 12px',fontSize:12,fontWeight:500,cursor:'pointer',border:'none',
+                      backgroundColor: filters.direction === d
+                        ? d === "call" ? 'rgba(16,185,129,0.2)' : d === "put" ? 'rgba(239,68,68,0.2)' : 'rgba(59,130,246,0.2)'
+                        : '#1e293b',
+                      color: filters.direction === d
+                        ? d === "call" ? '#6ee7b7' : d === "put" ? '#fca5a5' : '#93c5fd'
+                        : '#64748b'}}>
+                    {d === "both" ? "All" : d.charAt(0).toUpperCase() + d.slice(1) + "s"}
+                  </button>
+                ))}
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:8,fontSize:12,color:'#94a3b8'}}>
+                <span>Cheap &ge; {filters.minCheapness}</span>
+                <input type="range" min="0" max="100" step="5" value={filters.minCheapness}
+                  onChange={(e) => setFilters(f => ({ ...f, minCheapness: +e.target.value }))}
+                  style={{width:96,accentColor:'#3b82f6'}} />
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:8,fontSize:12,color:'#94a3b8'}}>
+                <span>Score &ge; {filters.minScore}</span>
+                <input type="range" min="0" max="100" step="5" value={filters.minScore}
+                  onChange={(e) => setFilters(f => ({ ...f, minScore: +e.target.value }))}
+                  style={{width:96,accentColor:'#3b82f6'}} />
+              </div>
+              {(filters.tickers.length > 0 || filters.direction !== "both" || filters.minCheapness > 0 || filters.minScore > 0) && (
+                <button onClick={() => setFilters({ tickers: [], direction: "both", minCheapness: 0, minScore: 0 })}
+                  style={{padding:'4px 8px',borderRadius:4,fontSize:12,color:'#94a3b8',backgroundColor:'#1e293b',border:'none',cursor:'pointer'}}>
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Main Table */}
+          <div style={{backgroundColor:'#0f172a',border:'1px solid #1e293b',borderRadius:12,overflow:'hidden',marginBottom:24}}>
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',fontSize:14,borderCollapse:'collapse'}}>
+                <thead>
+                  <tr style={{borderBottom:'1px solid #1e293b'}}>
+                    {columns.map(col => (
+                      <th key={col.key} onClick={() => handleSort(col.key)}
+                        style={{padding:'12px 12px',color:'#94a3b8',fontSize:11,textTransform:'uppercase',letterSpacing:'0.05em',fontWeight:600,
+                          textAlign:col.align,cursor:'pointer',userSelect:'none',whiteSpace:'nowrap'}}>
+                        {col.label}<SortIcon col={col.key} />
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredData.length === 0 ? (
+                    <tr><td colSpan={9} style={{textAlign:'center',padding:'48px 0',color:'#64748b'}}>
+                      No opportunities match your filters
+                    </td></tr>
+                  ) : filteredData.map((d, i) => (
+                    <tr key={i} onClick={() => setSelectedTrade(d)}
+                      style={{borderBottom:'1px solid rgba(30,41,59,0.5)',cursor:'pointer',transition:'background 0.15s'}}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor='rgba(30,41,59,0.5)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor='transparent'}>
+                      <td style={{padding:'10px 12px',fontWeight:500}}>{d.ticker}</td>
+                      <td style={{padding:'10px 12px',textAlign:'center'}}>
+                        <span style={{padding:'2px 6px',borderRadius:4,fontSize:12,fontWeight:500,
+                          backgroundColor:d.direction === "call" ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+                          color:d.direction === "call" ? '#34d399' : '#f87171'}}>
+                          {d.direction === "call" ? "C" : "P"}
+                        </span>
+                      </td>
+                      <td style={{padding:'10px 12px',color:'#cbd5e1'}}>
+                        <span style={{fontWeight:500}}>${d.long_strike}</span>
+                        <span style={{color:'#64748b',fontSize:12,marginLeft:4}}>{d.long_exp.slice(5)} @${d.long_price} x{d.long_qty}</span>
+                      </td>
+                      <td style={{padding:'10px 12px',color:'#cbd5e1'}}>
+                        <span style={{fontWeight:500}}>${d.short_strike}</span>
+                        <span style={{color:'#64748b',fontSize:12,marginLeft:4}}>{d.short_exp.slice(5)} @${d.short_price} x{d.short_qty}</span>
+                      </td>
+                      <td style={{padding:'10px 12px',textAlign:'center',color:'#cbd5e1'}}>{d.ratio}</td>
+                      <td style={{padding:'10px 12px',textAlign:'right',color:d.net_premium < 0 ? '#34d399' : d.net_premium > 0 ? '#f87171' : '#94a3b8'}}>
+                        {fmt$(d.net_premium)}
+                      </td>
+                      <td style={{padding:'10px 12px',textAlign:'right'}}>
+                        <span style={{fontWeight:500}}>{fmtNum(d.cheapness)}</span>
+                        <div style={{width:'100%',backgroundColor:'#1e293b',borderRadius:9999,height:4,marginTop:4}}>
+                          <div style={{height:4,borderRadius:9999,backgroundColor:'#10b981',width:`${d.cheapness}%`}} />
+                        </div>
+                      </td>
+                      <td style={{padding:'10px 12px',textAlign:'right',color:'#cbd5e1'}}>{fmt$(d.tail_payoff)}</td>
+                      <td style={{padding:'10px 12px',textAlign:'right'}}>
+                        <span style={{padding:'2px 8px',borderRadius:9999,fontSize:12,fontWeight:700,
+                          backgroundColor:d.score >= 85 ? 'rgba(234,179,8,0.2)' : d.score >= 70 ? 'rgba(16,185,129,0.2)' : d.score >= 50 ? 'rgba(59,130,246,0.2)' : '#334155',
+                          color:d.score >= 85 ? '#fde047' : d.score >= 70 ? '#6ee7b7' : d.score >= 50 ? '#93c5fd' : '#94a3b8'}}>
+                          {fmtNum(d.score)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Charts */}
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(400px,1fr))',gap:16,marginBottom:24}}>
+            <div style={{backgroundColor:'#0f172a',border:'1px solid #1e293b',borderRadius:12,padding:16}}>
+              <h3 style={{fontSize:14,fontWeight:500,color:'#94a3b8',marginBottom:12,marginTop:0}}>Cheapness Distribution</h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={histogramData} barGap={1}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="range" tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                  <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #334155", borderRadius: 8, color: "#e2e8f0" }} />
+                  <Bar dataKey="calls" stackId="a" fill={CALL_COLOR} name="Calls" />
+                  <Bar dataKey="puts" stackId="a" fill={PUT_COLOR} name="Puts" radius={[4,4,0,0]} />
+                  <Legend wrapperStyle={{ fontSize: 11, color: "#94a3b8" }} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div style={{backgroundColor:'#0f172a',border:'1px solid #1e293b',borderRadius:12,padding:16}}>
+              <h3 style={{fontSize:14,fontWeight:500,color:'#94a3b8',marginBottom:12,marginTop:0}}>Score vs Cheapness</h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <ScatterChart>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="cheapness" name="Cheapness" tick={{ fill: "#94a3b8", fontSize: 11 }} domain={[0,100]}
+                    label={{ value: "Cheapness", position: "bottom", fill: "#64748b", fontSize: 11, offset: -2 }} />
+                  <YAxis dataKey="score" name="Score" tick={{ fill: "#94a3b8", fontSize: 11 }} domain={[0,100]}
+                    label={{ value: "Score", angle: -90, position: "insideLeft", fill: "#64748b", fontSize: 11 }} />
+                  <Tooltip content={({ payload }) => {
+                    if (!payload || !payload.length) return null;
+                    const d = payload[0].payload;
+                    return (
+                      <div style={{backgroundColor:'#1e293b',border:'1px solid #334155',borderRadius:8,padding:8,fontSize:12}}>
+                        <div style={{fontWeight:700,color:'#f1f5f9'}}>{d.ticker}
+                          <span style={{color: d.direction === "call" ? '#34d399' : '#f87171'}}> {d.direction}</span>
+                        </div>
+                        <div style={{color:'#94a3b8'}}>Cheapness: {fmtNum(d.cheapness)} | Score: {fmtNum(d.score)}</div>
+                        <div style={{color:'#94a3b8'}}>Tail: {fmt$(d.tail)}</div>
+                      </div>
+                    );
+                  }} />
+                  <Scatter data={scatterData} fill="#8884d8">
+                    {scatterData.map((d, i) => (
+                      <Cell key={i} fill={CHART_COLORS[d.direction]} fillOpacity={0.8} />
+                    ))}
+                  </Scatter>
+                </ScatterChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Detail Modal */}
+          {selectedTrade && (
+            <div style={{position:'fixed',inset:0,backgroundColor:'rgba(0,0,0,0.6)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:16}}
+              onClick={() => setSelectedTrade(null)}>
+              <div style={{backgroundColor:'#0f172a',border:'1px solid #334155',borderRadius:16,maxWidth:640,width:'100%',maxHeight:'90vh',overflowY:'auto',padding:24}}
+                onClick={(e) => e.stopPropagation()}>
+                {/* Header */}
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20}}>
+                  <div style={{display:'flex',alignItems:'center',gap:12}}>
+                    <h2 style={{fontSize:20,fontWeight:700,margin:0}}>{selectedTrade.ticker}</h2>
+                    <span style={{padding:'2px 8px',borderRadius:4,fontSize:14,fontWeight:500,
+                      backgroundColor:selectedTrade.direction === "call" ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+                      color:selectedTrade.direction === "call" ? '#34d399' : '#f87171'}}>
+                      {selectedTrade.direction.toUpperCase()}
+                    </span>
+                    <span style={{padding:'2px 8px',borderRadius:9999,fontSize:14,fontWeight:700,
+                      backgroundColor:selectedTrade.score >= 85 ? 'rgba(234,179,8,0.2)' : selectedTrade.score >= 70 ? 'rgba(16,185,129,0.2)' : 'rgba(59,130,246,0.2)',
+                      color:selectedTrade.score >= 85 ? '#fde047' : selectedTrade.score >= 70 ? '#6ee7b7' : '#93c5fd'}}>
+                      Score: {fmtNum(selectedTrade.score)}
+                    </span>
+                  </div>
+                  <button onClick={() => setSelectedTrade(null)} style={{color:'#94a3b8',background:'none',border:'none',cursor:'pointer',padding:4}}>
+                    <XIcon style={{width:20,height:20}} />
+                  </button>
+                </div>
+
+                {/* Trade structure */}
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:20}}>
+                  <div style={{backgroundColor:'rgba(16,185,129,0.05)',border:'1px solid rgba(16,185,129,0.2)',borderRadius:12,padding:16}}>
+                    <div style={{fontSize:11,color:'#34d399',textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:8}}>Long Leg (Buy)</div>
+                    <div style={{fontSize:18,fontWeight:700}}>${selectedTrade.long_strike}</div>
+                    <div style={{fontSize:13,color:'#94a3b8',marginTop:4}}>Exp: {selectedTrade.long_exp}</div>
+                    <div style={{fontSize:13,color:'#94a3b8'}}>Price: ${selectedTrade.long_price} x {selectedTrade.long_qty}</div>
+                    <div style={{fontSize:13,color:'#cbd5e1',marginTop:4,fontWeight:500}}>Cost: {fmt$(selectedTrade.long_price * selectedTrade.long_qty * 100)}</div>
+                  </div>
+                  <div style={{backgroundColor:'rgba(239,68,68,0.05)',border:'1px solid rgba(239,68,68,0.2)',borderRadius:12,padding:16}}>
+                    <div style={{fontSize:11,color:'#f87171',textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:8}}>Short Leg (Sell)</div>
+                    <div style={{fontSize:18,fontWeight:700}}>${selectedTrade.short_strike}</div>
+                    <div style={{fontSize:13,color:'#94a3b8',marginTop:4}}>Exp: {selectedTrade.short_exp}</div>
+                    <div style={{fontSize:13,color:'#94a3b8'}}>Price: ${selectedTrade.short_price} x {selectedTrade.short_qty}</div>
+                    <div style={{fontSize:13,color:'#cbd5e1',marginTop:4,fontWeight:500}}>Credit: {fmt$(selectedTrade.short_price * selectedTrade.short_qty * 100)}</div>
+                  </div>
+                </div>
+
+                {/* Metrics */}
+                <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20}}>
+                  {[
+                    { label: "Ratio", value: selectedTrade.ratio },
+                    { label: "Net Premium", value: fmt$(selectedTrade.net_premium) },
+                    { label: "Neutrality", value: fmtPct(selectedTrade.premium_neutral_pct) },
+                    { label: "Tail Payoff", value: fmt$(selectedTrade.tail_payoff) },
+                  ].map(m => (
+                    <div key={m.label} style={{backgroundColor:'#1e293b',borderRadius:8,padding:12}}>
+                      <div style={{fontSize:11,color:'#64748b',textTransform:'uppercase'}}>{m.label}</div>
+                      <div style={{fontSize:15,fontWeight:600,marginTop:2}}>{m.value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Cheapness */}
+                <div style={{backgroundColor:'#1e293b',borderRadius:8,padding:16,marginBottom:16}}>
+                  <div style={{fontSize:11,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:12}}>Cheapness Analysis</div>
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,fontSize:14}}>
+                    <div><div style={{color:'#64748b',fontSize:12}}>Composite</div><div style={{fontWeight:700,fontSize:18}}>{fmtNum(selectedTrade.cheapness)}<span style={{fontSize:12,color:'#64748b'}}>/100</span></div></div>
+                    <div><div style={{color:'#64748b',fontSize:12}}>Equidist Ratio</div><div style={{fontWeight:600}}>{fmtNum(selectedTrade.equidist_ratio)}x</div></div>
+                    <div><div style={{color:'#64748b',fontSize:12}}>IV / RV</div><div style={{fontWeight:600,color:selectedTrade.iv_rv < 1 ? '#34d399' : '#f87171'}}>{fmtNum(selectedTrade.iv_rv, 2)}</div></div>
+                    <div><div style={{color:'#64748b',fontSize:12}}>Move Yield</div><div style={{fontWeight:600}}>{fmtNum(selectedTrade.hist_move_yield, 0)}x</div></div>
+                  </div>
+                </div>
+
+                {/* Greeks */}
+                <div style={{backgroundColor:'#1e293b',borderRadius:8,padding:16}}>
+                  <div style={{fontSize:11,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:12}}>Greeks at Entry</div>
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,fontSize:14}}>
+                    <div><div style={{color:'#64748b',fontSize:12}}>Delta</div><div style={{fontWeight:600}}>{fmtNum(selectedTrade.net_delta)}</div></div>
+                    <div><div style={{color:'#64748b',fontSize:12}}>Vega</div><div style={{fontWeight:600}}>{fmtNum(selectedTrade.net_vega)}</div></div>
+                    <div><div style={{color:'#64748b',fontSize:12}}>Theta</div><div style={{fontWeight:600,color:selectedTrade.net_theta < 0 ? '#f87171' : '#34d399'}}>{fmtNum(selectedTrade.net_theta, 2)}/day</div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.render(<BackspreadDashboard />, document.getElementById("root"));
+  </script>
+</body>
+</html>
