@@ -203,19 +203,22 @@
     function findCheapOptions(chain, S, rv, mm) {
       const cands = [];
       const all = [...chain.calls, ...chain.puts];
+      console.log("[v2.3] findCheapOptions: S="+S+", total contracts="+all.length+", max OTM=18%");
+      let filtered18=0;
       for (const c of all) {
         if (c.option_type==="call"&&c.strike<=S) continue;
         if (c.option_type==="put"&&c.strike>=S) continue;
         const dist = Math.abs(c.strike-S)/S;
-        if (dist<0.03||dist>0.18) continue;
-        if (c.mid_price>5||c.mid_price<=0) continue;
-        if (c.delta!=null&&Math.abs(c.delta)>0.20) continue;
+        if (dist<0.03||dist>0.18) { if(dist>0.18) filtered18++; continue; }
+        if (c.mid_price>5||c.mid_price<0.05) continue;
+        if (c.delta!=null&&(Math.abs(c.delta)>0.20||Math.abs(c.delta)<0.02)) continue;
         const eq=scoreEquidist(c,chain,S), ir=scoreIvRv(c.implied_volatility,rv),
               hm=scoreHistMoves(c,S,mm), ap=scoreAbsPrice(c.mid_price), wl=scoreWing(c,chain,S);
         const composite = 0.30*eq.s + 0.20*ir.s + 0.25*hm.s + 0.10*ap + 0.15*wl.s;
         if (composite>=30) cands.push({ contract:c, cheapness:composite, equidist_ratio:eq.ratio,
           iv_rv_ratio:ir.ratio, move_would_yield:hm.yield, move_yield_ratio:hm.yieldRatio, underlying_price:S });
       }
+      console.log("[v2.3] findCheapOptions: "+filtered18+" contracts filtered for >18% OTM, "+cands.length+" cheap candidates remain");
       cands.sort((a,b) => b.cheapness-a.cheapness);
       return cands;
     }
@@ -257,13 +260,20 @@
         if (!fins.length) continue;
         for (const sc of fins.slice(0,5)) {
           // Strike gap check: longs must respond when shorts are tested
-          // Max gap = 10% of underlying — keeps longs in the delta zone
+          // Max gap = 2% of underlying — longs must be near-adjacent to shorts
           const strikeGap = Math.abs(lc.strike - sc.strike);
-          if (strikeGap / S > 0.10) continue;
+          if (strikeGap / S > 0.02) continue;
           const lp=lc.mid_price, sp=sc.mid_price;
           if (lp<=0||sp<=0) continue;
           const [lq,sq] = calcRatio(lp, sp);
           if (lq<2||sq<1) continue;
+          // Aggregate delta check: longs × delta must exceed shorts × delta
+          // so position accelerates in your favor past the short strike
+          if (lc.delta!=null && sc.delta!=null) {
+            const aggLongD = Math.abs(lc.delta) * lq;
+            const aggShortD = Math.abs(sc.delta) * sq;
+            if (aggLongD < aggShortD * 0.5) continue; // longs too weak
+          }
           const net = lq*lp*100 - sq*sp*100;
           const pnPct = Math.abs(net)/Math.max(lq*lp*100, 1);
           let tail = null;
@@ -617,6 +627,7 @@
           <div style={{...box, marginBottom:16, padding:12}}>
             <div style={{display:"flex",flexWrap:"wrap",alignItems:"center",gap:12}}>
               <span style={{fontSize:13,color:"#34d399"}}>{"\u2713"} Live</span>
+              <span style={{fontSize:10,color:"#475569"}}>v2.3</span>
               <div style={{width:1,height:20,backgroundColor:"#334155"}}></div>
               <span style={{fontSize:12,color:"#94a3b8"}}>Tickers:</span>
               <input type="text" value={tickerInput} onChange={e=>setTickerInput(e.target.value)} style={{width:280,fontSize:12}} />
