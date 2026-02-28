@@ -4,565 +4,860 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ratio Backspread Scanner</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
-  <script src="https://unpkg.com/lucide-react@0.263.1/dist/umd/lucide-react.js"></script>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.23.9/babel.min.js"></script>
   <style>
-    body { margin: 0; background: #0f172a; }
-    /* Custom dark overrides for Tailwind v2 classes */
-    .bg-slate-950 { background-color: #020617; }
-    .bg-slate-900 { background-color: #0f172a; }
-    .bg-slate-800 { background-color: #1e293b; }
-    .border-slate-800 { border-color: #1e293b; }
-    .border-slate-700 { border-color: #334155; }
-    .border-slate-600 { border-color: #475569; }
-    .text-slate-100 { color: #f1f5f9; }
-    .text-slate-200 { color: #e2e8f0; }
-    .text-slate-300 { color: #cbd5e1; }
-    .text-slate-400 { color: #94a3b8; }
-    .text-slate-500 { color: #64748b; }
-    .hover\:text-slate-200:hover { color: #e2e8f0; }
-    .hover\:text-slate-200:hover { color: #e2e8f0; }
-    .hover\:border-slate-400:hover { border-color: #94a3b8; }
-    .hover\:bg-slate-700:hover { background-color: #334155; }
-    .hover\:bg-slate-800\/50:hover { background-color: rgba(30,41,59,0.5); }
-    .border-slate-800\/50 { border-color: rgba(30,41,59,0.5); }
-    .bg-emerald-500\/5 { background-color: rgba(16,185,129,0.05); }
-    .bg-emerald-500\/15 { background-color: rgba(16,185,129,0.15); }
-    .bg-emerald-500\/20 { background-color: rgba(16,185,129,0.2); }
-    .border-emerald-500\/20 { border-color: rgba(16,185,129,0.2); }
-    .text-emerald-400 { color: #34d399; }
-    .text-emerald-300 { color: #6ee7b7; }
-    .bg-red-500\/5 { background-color: rgba(239,68,68,0.05); }
-    .bg-red-500\/10 { background-color: rgba(239,68,68,0.1); }
-    .bg-red-500\/15 { background-color: rgba(239,68,68,0.15); }
-    .bg-red-500\/20 { background-color: rgba(239,68,68,0.2); }
-    .border-red-500\/20 { border-color: rgba(239,68,68,0.2); }
-    .border-red-500\/30 { border-color: rgba(239,68,68,0.3); }
-    .text-red-400 { color: #f87171; }
-    .text-red-300 { color: #fca5a5; }
-    .bg-blue-500\/10 { background-color: rgba(59,130,246,0.1); }
-    .bg-blue-500\/20 { background-color: rgba(59,130,246,0.2); }
-    .border-blue-500\/30 { border-color: rgba(59,130,246,0.3); }
-    .border-blue-400 { border-color: #60a5fa; }
-    .text-blue-400 { color: #60a5fa; }
-    .text-blue-300 { color: #93c5fd; }
-    .bg-yellow-500\/20 { background-color: rgba(234,179,8,0.2); }
-    .text-yellow-400 { color: #facc15; }
-    .text-yellow-300 { color: #fde047; }
-    .bg-purple-500\/20 { background-color: rgba(168,85,247,0.2); }
-    .text-purple-400 { color: #c084fc; }
-    .accent-blue-500 { accent-color: #3b82f6; }
-    .backdrop-blur-sm { backdrop-filter: blur(4px); }
-    .bg-black\/60 { background-color: rgba(0,0,0,0.6); }
-    input[type="range"] { -webkit-appearance: auto; }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #1e293b; }
-    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#020617; color:#f1f5f9; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+    table { border-collapse:collapse; width:100%; }
+    button { font-family:inherit; }
+    input[type="range"] { accent-color:#3b82f6; }
+    input[type="text"],input[type="password"] { font-family:inherit; background:#1e293b; color:#f1f5f9; border:1px solid #334155; border-radius:6px; padding:6px 10px; font-size:13px; outline:none; }
+    input[type="text"]:focus,input[type="password"]:focus { border-color:#3b82f6; }
+    ::-webkit-scrollbar { width:6px; height:6px; }
+    ::-webkit-scrollbar-track { background:#1e293b; }
+    ::-webkit-scrollbar-thumb { background:#475569; border-radius:3px; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
   </style>
 </head>
 <body>
   <div id="root"></div>
   <script type="text/babel">
-    const { useState, useMemo, useCallback, useEffect } = React;
-    const {
-      BarChart, Bar, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid,
-      Tooltip, ResponsiveContainer, Cell, Legend
-    } = Recharts;
+    const { useState, useMemo, useCallback, useEffect, useRef } = React;
 
-    // Lucide icons
-    const Icons = window.lucideReact || {};
-    const Upload = Icons.Upload || (() => React.createElement('span', null, '\u2B06'));
-    const XIcon = Icons.X || (() => React.createElement('span', null, '\u2716'));
-    const ChevronUp = Icons.ChevronUp || (() => React.createElement('span', null, '\u25B2'));
-    const ChevronDown = Icons.ChevronDown || (() => React.createElement('span', null, '\u25BC'));
-    const Filter = Icons.Filter || (() => React.createElement('span', null, '\u29D6'));
-    const TrendingUp = Icons.TrendingUp || (() => React.createElement('span', null, '\u2197'));
-    const DollarSign = Icons.DollarSign || (() => React.createElement('span', null, '$'));
-    const Target = Icons.Target || (() => React.createElement('span', null, '\u25CE'));
-    const Zap = Icons.Zap || (() => React.createElement('span', null, '\u26A1'));
-    const RotateCcw = Icons.RotateCcw || (() => React.createElement('span', null, '\u21BA'));
+    /* ══════════════════════════════════════════════════════════════
+       POLYGON API CLIENT
+       ══════════════════════════════════════════════════════════════ */
+    const POLYGON = "https://api.polygon.io";
+    let _lastCall = 0;
+    const THROTTLE = 300;
 
-    // ══════════════════════════════════════════════════════════════
-    // Demo Data — fear-regime: calls are cheap, puts are expensive
-    // ══════════════════════════════════════════════════════════════
-    const DEMO_DATA = [
-      { ticker: "SPY", direction: "call", long_strike: 620, long_exp: "2026-04-17", long_price: 0.45, long_qty: 12, short_strike: 585, short_exp: "2026-03-06", short_price: 5.40, short_qty: 1, ratio: "12:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 82.5, equidist_ratio: 4.8, iv_rv: 0.72, hist_move_yield: 18, tail_payoff: 4200, net_delta: 12.4, net_vega: 35.2, net_theta: -1.85, score: 88.2 },
-      { ticker: "SPY", direction: "call", long_strike: 630, long_exp: "2026-04-17", long_price: 0.18, long_qty: 30, short_strike: 585, short_exp: "2026-03-06", short_price: 5.40, short_qty: 1, ratio: "30:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 91.3, equidist_ratio: 6.2, iv_rv: 0.65, hist_move_yield: 32, tail_payoff: 6800, net_delta: 8.1, net_vega: 42.0, net_theta: -2.10, score: 92.1 },
-      { ticker: "SPY", direction: "put", long_strike: 540, long_exp: "2026-04-17", long_price: 3.20, long_qty: 3, short_strike: 575, short_exp: "2026-03-06", short_price: 9.60, short_qty: 1, ratio: "3:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 38.4, equidist_ratio: 1.4, iv_rv: 1.15, hist_move_yield: 5, tail_payoff: 1200, net_delta: -18.5, net_vega: 22.0, net_theta: -0.95, score: 52.3 },
-      { ticker: "SPY", direction: "put", long_strike: 530, long_exp: "2026-04-17", long_price: 2.40, long_qty: 4, short_strike: 575, short_exp: "2026-03-06", short_price: 9.60, short_qty: 1, ratio: "4:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 42.1, equidist_ratio: 1.6, iv_rv: 1.10, hist_move_yield: 7, tail_payoff: 1800, net_delta: -22.1, net_vega: 28.0, net_theta: -1.20, score: 55.8 },
-      { ticker: "QQQ", direction: "call", long_strike: 540, long_exp: "2026-04-17", long_price: 0.52, long_qty: 10, short_strike: 505, short_exp: "2026-03-06", short_price: 5.20, short_qty: 1, ratio: "10:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 78.9, equidist_ratio: 4.2, iv_rv: 0.78, hist_move_yield: 15, tail_payoff: 3500, net_delta: 10.8, net_vega: 30.5, net_theta: -1.65, score: 84.7 },
-      { ticker: "QQQ", direction: "call", long_strike: 550, long_exp: "2026-05-15", long_price: 0.85, long_qty: 6, short_strike: 505, short_exp: "2026-03-06", short_price: 5.20, short_qty: 1, ratio: "6:1", net_premium: -10.00, premium_neutral_pct: 2.0, cheapness: 71.2, equidist_ratio: 3.5, iv_rv: 0.82, hist_move_yield: 12, tail_payoff: 2800, net_delta: 14.2, net_vega: 38.0, net_theta: -1.45, score: 79.5 },
-      { ticker: "QQQ", direction: "put", long_strike: 460, long_exp: "2026-04-17", long_price: 2.80, long_qty: 4, short_strike: 495, short_exp: "2026-03-06", short_price: 11.20, short_qty: 1, ratio: "4:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 35.6, equidist_ratio: 1.3, iv_rv: 1.20, hist_move_yield: 4, tail_payoff: 980, net_delta: -20.4, net_vega: 18.0, net_theta: -0.88, score: 48.2 },
-      { ticker: "TSLA", direction: "call", long_strike: 450, long_exp: "2026-04-17", long_price: 1.20, long_qty: 8, short_strike: 390, short_exp: "2026-03-06", short_price: 9.60, short_qty: 1, ratio: "8:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 74.8, equidist_ratio: 3.8, iv_rv: 0.68, hist_move_yield: 22, tail_payoff: 5200, net_delta: 15.6, net_vega: 52.0, net_theta: -2.80, score: 82.4 },
-      { ticker: "TSLA", direction: "call", long_strike: 480, long_exp: "2026-05-15", long_price: 0.35, long_qty: 20, short_strike: 390, short_exp: "2026-03-06", short_price: 7.00, short_qty: 1, ratio: "20:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 88.5, equidist_ratio: 5.5, iv_rv: 0.58, hist_move_yield: 45, tail_payoff: 8500, net_delta: 6.2, net_vega: 48.0, net_theta: -2.40, score: 90.8 },
-      { ticker: "TSLA", direction: "put", long_strike: 280, long_exp: "2026-04-17", long_price: 2.10, long_qty: 5, short_strike: 370, short_exp: "2026-03-06", short_price: 10.50, short_qty: 1, ratio: "5:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 45.2, equidist_ratio: 1.8, iv_rv: 1.05, hist_move_yield: 8, tail_payoff: 2100, net_delta: -25.3, net_vega: 32.0, net_theta: -1.55, score: 58.9 },
-      { ticker: "AAPL", direction: "call", long_strike: 270, long_exp: "2026-04-17", long_price: 0.65, long_qty: 8, short_strike: 248, short_exp: "2026-03-06", short_price: 5.20, short_qty: 1, ratio: "8:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 72.1, equidist_ratio: 3.6, iv_rv: 0.80, hist_move_yield: 14, tail_payoff: 2900, net_delta: 11.2, net_vega: 28.0, net_theta: -1.35, score: 78.4 },
-      { ticker: "AAPL", direction: "put", long_strike: 210, long_exp: "2026-04-17", long_price: 1.80, long_qty: 3, short_strike: 240, short_exp: "2026-03-06", short_price: 5.40, short_qty: 1, ratio: "3:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 40.8, equidist_ratio: 1.5, iv_rv: 1.12, hist_move_yield: 6, tail_payoff: 1100, net_delta: -15.8, net_vega: 20.0, net_theta: -0.92, score: 53.1 },
-      { ticker: "NVDA", direction: "call", long_strike: 170, long_exp: "2026-04-17", long_price: 0.90, long_qty: 7, short_strike: 142, short_exp: "2026-03-06", short_price: 6.30, short_qty: 1, ratio: "7:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 76.3, equidist_ratio: 4.1, iv_rv: 0.74, hist_move_yield: 20, tail_payoff: 4100, net_delta: 13.5, net_vega: 45.0, net_theta: -2.20, score: 83.6 },
-      { ticker: "NVDA", direction: "call", long_strike: 180, long_exp: "2026-05-15", long_price: 0.40, long_qty: 15, short_strike: 142, short_exp: "2026-03-06", short_price: 6.00, short_qty: 1, ratio: "15:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 85.7, equidist_ratio: 5.0, iv_rv: 0.62, hist_move_yield: 35, tail_payoff: 7200, net_delta: 7.8, net_vega: 50.0, net_theta: -2.50, score: 89.3 },
-      { ticker: "GLD", direction: "call", long_strike: 300, long_exp: "2026-05-15", long_price: 0.55, long_qty: 9, short_strike: 275, short_exp: "2026-03-06", short_price: 4.95, short_qty: 1, ratio: "9:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 68.4, equidist_ratio: 3.2, iv_rv: 0.85, hist_move_yield: 11, tail_payoff: 2200, net_delta: 9.5, net_vega: 22.0, net_theta: -1.10, score: 74.2 },
-      { ticker: "GLD", direction: "put", long_strike: 240, long_exp: "2026-04-17", long_price: 1.60, long_qty: 3, short_strike: 268, short_exp: "2026-03-06", short_price: 4.80, short_qty: 1, ratio: "3:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 44.5, equidist_ratio: 1.7, iv_rv: 1.08, hist_move_yield: 6, tail_payoff: 950, net_delta: -12.8, net_vega: 16.0, net_theta: -0.78, score: 56.4 },
-      { ticker: "AMD", direction: "call", long_strike: 155, long_exp: "2026-04-17", long_price: 0.72, long_qty: 7, short_strike: 128, short_exp: "2026-03-06", short_price: 5.04, short_qty: 1, ratio: "7:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 70.5, equidist_ratio: 3.4, iv_rv: 0.76, hist_move_yield: 16, tail_payoff: 3400, net_delta: 12.0, net_vega: 38.0, net_theta: -1.90, score: 77.8 },
-      { ticker: "MU", direction: "call", long_strike: 120, long_exp: "2026-05-15", long_price: 0.48, long_qty: 10, short_strike: 98, short_exp: "2026-03-06", short_price: 4.80, short_qty: 1, ratio: "10:1", net_premium: 0.00, premium_neutral_pct: 0.0, cheapness: 73.8, equidist_ratio: 3.9, iv_rv: 0.70, hist_move_yield: 19, tail_payoff: 3800, net_delta: 9.8, net_vega: 34.0, net_theta: -1.70, score: 80.1 },
-    ];
+    async function polyGet(path, key, params={}) {
+      const wait = THROTTLE - (Date.now() - _lastCall);
+      if (wait > 0) await new Promise(r => setTimeout(r, wait));
+      _lastCall = Date.now();
+      const u = new URL(path, POLYGON);
+      u.searchParams.set("apiKey", key);
+      for (const [k,v] of Object.entries(params)) u.searchParams.set(k, String(v));
+      const resp = await fetch(u.toString());
+      if (resp.status === 429) { await new Promise(r => setTimeout(r, 5000)); return polyGet(path, key, params); }
+      if (resp.status === 403) throw new Error("Invalid API key or insufficient Polygon subscription");
+      if (!resp.ok) throw new Error("Polygon API " + resp.status);
+      return resp.json();
+    }
 
-    const fmt$ = (v) => v == null ? "\u2014" : (v < 0 ? `-$${Math.abs(v).toLocaleString()}` : `$${v.toLocaleString()}`);
-    const fmtPct = (v) => v == null ? "\u2014" : `${v.toFixed(1)}%`;
-    const fmtNum = (v, d = 1) => v == null ? "\u2014" : v.toFixed(d);
+    async function polyPages(path, key, params={}) {
+      const all = [];
+      let data = await polyGet(path, key, { ...params, limit: 250 });
+      all.push(...(data.results || []));
+      let next = data.next_url;
+      while (next) {
+        if (!next.includes("apiKey") && !next.includes("api_key")) next += (next.includes("?")?"&":"?") + "apiKey=" + key;
+        const w = THROTTLE - (Date.now() - _lastCall);
+        if (w > 0) await new Promise(r => setTimeout(r, w));
+        _lastCall = Date.now();
+        const resp = await fetch(next);
+        if (!resp.ok) break;
+        data = await resp.json();
+        all.push(...(data.results || []));
+        next = data.next_url || null;
+      }
+      return all;
+    }
 
-    const CALL_COLOR = "#10b981";
-    const PUT_COLOR = "#ef4444";
-    const CHART_COLORS = { call: CALL_COLOR, put: PUT_COLOR };
+    async function getStockPrice(t, key) {
+      const d = await polyGet("/v2/aggs/ticker/" + t + "/prev", key);
+      const r = d.results || [];
+      return r.length ? r[0].c : null;
+    }
 
-    function BackspreadDashboard() {
-      const [rawData, setRawData] = useState(DEMO_DATA);
+    async function getHistorical(t, key, lookback) {
+      lookback = lookback || 252;
+      const end = new Date(), start = new Date(end.getTime() - lookback * 1.5 * 864e5);
+      const d = await polyGet("/v2/aggs/ticker/" + t + "/range/1/day/" + iso(start) + "/" + iso(end), key,
+        { adjusted:"true", sort:"asc", limit:5000 });
+      return (d.results || []).slice(-lookback).map(r => ({ c:r.c, h:r.h, l:r.l, o:r.o }));
+    }
+
+    function iso(d) { return d.toISOString().split("T")[0]; }
+
+    function calcRV(bars) {
+      if (bars.length < 20) return null;
+      const c = bars.map(b => b.c).filter(v => v > 0);
+      if (c.length < 20) return null;
+      const lr = []; for (let i = 1; i < c.length; i++) lr.push(Math.log(c[i]/c[i-1]));
+      const m = lr.reduce((s,v)=>s+v,0)/lr.length;
+      const v = lr.reduce((s,v)=>s+(v-m)**2,0)/(lr.length-1);
+      return Math.sqrt(v)*Math.sqrt(252);
+    }
+
+    function calcMaxMoves(bars) {
+      if (bars.length < 10) return {};
+      const c = bars.map(b => b.c).filter(v => v > 0);
+      const dr = []; for (let i=1;i<c.length;i++) dr.push((c[i]-c[i-1])/c[i-1]);
+      if (!dr.length) return {};
+      const res = { max_up_pct: Math.max(...dr), max_down_pct: Math.min(...dr) };
+      for (const w of [5,10,20]) {
+        if (c.length > w) {
+          const wr = []; for (let i=w;i<c.length;i++) wr.push((c[i]-c[i-w])/c[i-w]);
+          res["max_"+w+"d_up"] = Math.max(...wr);
+          res["max_"+w+"d_down"] = Math.min(...wr);
+        }
+      }
+      return res;
+    }
+
+    async function fetchChains(ticker, key) {
+      const today = iso(new Date());
+      const maxD = iso(new Date(Date.now() + 120*864e5));
+      const results = await polyPages("/v3/snapshot/options/" + ticker, key,
+        { "expiration_date.gte": today, "expiration_date.lte": maxD });
+      const chains = {};
+      let underlyingPrice = null;
+      for (const r of results) {
+        const det = r.details || {}, lq = r.last_quote || {}, dy = r.day || {}, gr = r.greeks || {};
+        const exp = det.expiration_date; if (!exp) continue;
+        const strike = parseFloat(det.strike_price || 0);
+        const ot = (det.contract_type || "").toLowerCase();
+        if (strike <= 0 || (ot !== "call" && ot !== "put")) continue;
+        const bid = parseFloat(lq.bid || 0), ask = parseFloat(lq.ask || 0);
+        const last = parseFloat(dy.close || lq.midpoint || 0);
+        const mid = (bid > 0 && ask > 0) ? (bid+ask)/2 : last;
+        if (r.underlying_asset && r.underlying_asset.price) underlyingPrice = r.underlying_asset.price;
+        const contract = { ticker, strike, expiration:exp, option_type:ot, bid, ask, last, mid_price:mid,
+          volume: parseInt(dy.volume||0), open_interest: parseInt(r.open_interest||0),
+          implied_volatility: gr.implied_volatility ? parseFloat(gr.implied_volatility) : null,
+          delta: gr.delta!=null ? parseFloat(gr.delta) : null,
+          gamma: gr.gamma!=null ? parseFloat(gr.gamma) : null,
+          vega: gr.vega!=null ? parseFloat(gr.vega) : null,
+          theta: gr.theta!=null ? parseFloat(gr.theta) : null };
+        if (!chains[exp]) chains[exp] = { calls:[], puts:[] };
+        (ot==="call" ? chains[exp].calls : chains[exp].puts).push(contract);
+      }
+      for (const exp of Object.keys(chains)) {
+        chains[exp].calls.sort((a,b) => a.strike-b.strike);
+        chains[exp].puts.sort((a,b) => a.strike-b.strike);
+      }
+      return { chains, underlyingPrice };
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       CHEAPNESS ANALYZER
+       ══════════════════════════════════════════════════════════════ */
+    function nearest(contracts, target) {
+      if (!contracts.length) return null;
+      return contracts.reduce((b,c) => Math.abs(c.strike-target)<Math.abs(b.strike-target)?c:b);
+    }
+    function avgOtmIv(contracts, S, ot) {
+      const ivs = contracts.filter(c => c.implied_volatility && c.implied_volatility>0)
+        .filter(c => ot==="call" ? c.strike>S : c.strike<S).map(c => c.implied_volatility);
+      return ivs.length ? ivs.reduce((s,v)=>s+v,0)/ivs.length : null;
+    }
+
+    function scoreEquidist(c, chain, S) {
+      const dist = Math.abs(c.strike - S);
+      const mStrike = c.option_type==="call" ? S-dist : S+dist;
+      const mType = c.option_type==="call" ? "put" : "call";
+      const mirror = nearest(mType==="call"?chain.calls:chain.puts, mStrike);
+      if (mirror && mirror.mid_price>0 && c.mid_price>0) {
+        const ratio = Math.min(mirror.mid_price/c.mid_price, 10);
+        return { s: Math.max(0,(ratio-1)/9*100), ratio };
+      }
+      return { s:0, ratio:null };
+    }
+    function scoreIvRv(iv, rv) {
+      if (!iv||!rv||rv<=0) return { s:50, ratio:null };
+      const ratio = iv/rv;
+      return { s: ratio<=0.5?100 : ratio>=1.5?0 : Math.max(0,(1.5-ratio)/1*100), ratio };
+    }
+    function scoreHistMoves(c, S, mm) {
+      if (!mm||!S||c.mid_price<=0) return { s:50, yield:null, yieldRatio:null };
+      let biggest;
+      if (c.option_type==="call") {
+        biggest = Math.max(mm.max_up_pct||0, mm.max_5d_up||0, mm.max_10d_up||0, mm.max_20d_up||0);
+      } else {
+        biggest = Math.max(Math.abs(mm.max_down_pct||0), Math.abs(mm.max_5d_down||0),
+          Math.abs(mm.max_10d_down||0), Math.abs(mm.max_20d_down||0));
+      }
+      if (biggest<=0) return { s:50, yield:null, yieldRatio:null };
+      const intrinsic = c.option_type==="call" ? Math.max(S*(1+biggest)-c.strike,0) : Math.max(c.strike-S*(1-biggest),0);
+      if (intrinsic<=0) return { s:0, yield:0, yieldRatio:0 };
+      const ratio = intrinsic/c.mid_price;
+      let s; if(ratio<=1) s=0; else if(ratio<=10) s=(ratio-1)/9*60; else if(ratio<=100) s=60+(ratio-10)/90*30;
+      else s=90+Math.min((ratio-100)/100,1)*10;
+      return { s, yield:intrinsic, yieldRatio:ratio };
+    }
+    function scoreAbsPrice(p) {
+      if(p<=0) return 0; if(p<=0.05) return 100; if(p<=0.10) return 90; if(p<=0.25) return 75;
+      if(p<=0.50) return 60; if(p<=1) return 45; if(p<=2) return 30; if(p<=5) return 15; return 0;
+    }
+    function scoreWing(c, chain, S) {
+      const sameIv = avgOtmIv(c.option_type==="call"?chain.calls:chain.puts, S, c.option_type);
+      const oppType = c.option_type==="call"?"put":"call";
+      const oppIv = avgOtmIv(oppType==="call"?chain.calls:chain.puts, S, oppType);
+      if (sameIv&&oppIv&&sameIv>0) { const r=oppIv/sameIv; return { s: r<=1?0:r<=2?(r-1)*100:100 }; }
+      return { s:50 };
+    }
+
+    function findCheapOptions(chain, S, rv, mm) {
+      const cands = [];
+      const all = [...chain.calls, ...chain.puts];
+      for (const c of all) {
+        if (c.option_type==="call"&&c.strike<=S) continue;
+        if (c.option_type==="put"&&c.strike>=S) continue;
+        const dist = Math.abs(c.strike-S)/S;
+        if (dist<0.03||dist>0.18) continue;
+        if (c.mid_price>5||c.mid_price<=0) continue;
+        if (c.delta!=null&&Math.abs(c.delta)>0.20) continue;
+        const eq=scoreEquidist(c,chain,S), ir=scoreIvRv(c.implied_volatility,rv),
+              hm=scoreHistMoves(c,S,mm), ap=scoreAbsPrice(c.mid_price), wl=scoreWing(c,chain,S);
+        const composite = 0.30*eq.s + 0.20*ir.s + 0.25*hm.s + 0.10*ap + 0.15*wl.s;
+        if (composite>=30) cands.push({ contract:c, cheapness:composite, equidist_ratio:eq.ratio,
+          iv_rv_ratio:ir.ratio, move_would_yield:hm.yield, move_yield_ratio:hm.yieldRatio, underlying_price:S });
+      }
+      cands.sort((a,b) => b.cheapness-a.cheapness);
+      return cands;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       BACKSPREAD CONSTRUCTOR
+       ══════════════════════════════════════════════════════════════ */
+    function findFinancing(chain, ot, S) {
+      const src = ot==="call"?chain.calls:chain.puts;
+      const cands = [];
+      for (const c of src) {
+        if (c.mid_price<=0.05) continue;
+        if (c.delta!=null) { if (Math.abs(c.delta)<0.25||Math.abs(c.delta)>0.60) continue; }
+        else { const m=c.strike/S; if(ot==="call"?(m<0.95||m>1.10):(m<0.90||m>1.05)) continue; }
+        cands.push(c);
+      }
+      cands.sort((a,b) => b.mid_price-a.mid_price);
+      return cands;
+    }
+
+    function calcRatio(lp, sp) {
+      if (lp<=0||sp<=0) return [0,0];
+      const per = sp/lp;
+      let best=null, bestN=Infinity;
+      for (let sq=1; sq<20; sq++) {
+        const lq = Math.round(sq*per);
+        if (lq<2||lq<=sq) continue;
+        const net = lq*lp - sq*sp, neut = Math.abs(net)/Math.max(lq*lp,0.01);
+        if (neut<=0.20 && (best===null||neut<bestN)) { best=[lq,sq]; bestN=neut; }
+      }
+      return best || [Math.max(2,Math.round(per)), 1];
+    }
+
+    function buildBackspreads(cheapReports, shortChain, S) {
+      const strats = [];
+      for (const rep of cheapReports) {
+        const lc = rep.contract, ot = lc.option_type;
+        const fins = findFinancing(shortChain, ot, S);
+        if (!fins.length) continue;
+        for (const sc of fins.slice(0,5)) {
+          // Strike gap check: longs must respond when shorts are tested
+          // Max gap = 10% of underlying — keeps longs in the delta zone
+          const strikeGap = Math.abs(lc.strike - sc.strike);
+          if (strikeGap / S > 0.10) continue;
+          const lp=lc.mid_price, sp=sc.mid_price;
+          if (lp<=0||sp<=0) continue;
+          const [lq,sq] = calcRatio(lp, sp);
+          if (lq<2||sq<1) continue;
+          const net = lq*lp*100 - sq*sp*100;
+          const pnPct = Math.abs(net)/Math.max(lq*lp*100, 1);
+          let tail = null;
+          if (rep.move_would_yield!=null) tail = rep.move_would_yield*lq*100 - Math.abs(net);
+          const nd = (lc.delta!=null&&sc.delta!=null) ? (lc.delta*lq + sc.delta*(-sq))*100 : 0;
+          const nv = (lc.vega!=null&&sc.vega!=null) ? (lc.vega*lq - sc.vega*sq)*100 : 0;
+          const nt = (lc.theta!=null&&sc.theta!=null) ? (lc.theta*lq - sc.theta*sq)*100 : 0;
+          // Gap risk: max loss in the dead zone between short and long strikes
+          const gapRisk = strikeGap * sq * 100;
+          strats.push({
+            ticker:lc.ticker, direction:ot,
+            long_strike:lc.strike, long_exp:lc.expiration, long_price:Math.round(lp*100)/100, long_qty:lq,
+            short_strike:sc.strike, short_exp:sc.expiration, short_price:Math.round(sp*100)/100, short_qty:sq,
+            ratio:lq+":"+sq, net_premium:Math.round(net*100)/100, premium_neutral_pct:Math.round(pnPct*1000)/10,
+            gap_risk:Math.round(gapRisk),
+            cheapness:Math.round(rep.cheapness*10)/10, equidist_ratio:rep.equidist_ratio?Math.round(rep.equidist_ratio*10)/10:0,
+            iv_rv:rep.iv_rv_ratio?Math.round(rep.iv_rv_ratio*100)/100:0,
+            hist_move_yield:rep.move_yield_ratio?Math.round(rep.move_yield_ratio):0,
+            tail_payoff:tail?Math.round(tail):0,
+            net_delta:Math.round(nd*10)/10, net_vega:Math.round(nv*10)/10, net_theta:Math.round(nt*100)/100,
+            score:0
+          });
+        }
+      }
+      return strats;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       OPPORTUNITY RANKER
+       ══════════════════════════════════════════════════════════════ */
+    function scoreStrat(s) {
+      const cs = Math.min(s.cheapness, 100);
+      const pn = s.premium_neutral_pct/100;
+      let ns; if(pn<=0.01) ns=100; else if(pn>=0.30) ns=0; else ns=Math.max(0,(0.30-pn)/0.30*100);
+      if (s.net_premium<0) ns=Math.min(100,ns+20);
+      let ts=25;
+      if (s.tail_payoff>0) { const tp=s.tail_payoff;
+        if(tp<=1000) ts=tp/1000*30; else if(tp<=10000) ts=30+(tp-1000)/9000*30;
+        else if(tp<=100000) ts=60+(tp-10000)/90000*30; else ts=90+Math.min((tp-100000)/100000,1)*10; }
+      if (s.hist_move_yield>1) ts=Math.min(100,ts+Math.min(s.hist_move_yield/50*20,20));
+      let rs=50;
+      if(s.net_vega>0) rs+=15;
+      if(Math.abs(s.net_theta)<5) rs+=10; else if(Math.abs(s.net_theta)<20) rs+=5;
+      const rp = s.ratio.split(":").map(Number); const ratN=rp[0]/rp[1];
+      if(ratN>=5) rs+=15; else if(ratN>=3) rs+=10;
+      if(Math.abs(s.net_delta)<100) rs+=10;
+      /* Penalize gap risk: large gap between long & short strikes means
+         long legs won't respond when short legs are tested */
+      if (s.gap_risk!=null && s.gap_risk>0) {
+        const gapPenalty = Math.min(s.gap_risk / 500, 1) * 30;
+        rs = Math.max(0, rs - gapPenalty);
+      }
+      rs=Math.min(rs,100);
+      s.score = Math.round((0.40*cs + 0.20*ns + 0.25*ts + 0.15*rs)*10)/10;
+      return s.score;
+    }
+    function rankAll(strats, topN) {
+      for (const s of strats) scoreStrat(s);
+      strats.sort((a,b) => b.score-a.score);
+      return strats.slice(0, topN||50);
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       MARKET HOURS
+       ══════════════════════════════════════════════════════════════ */
+    function marketStatus() {
+      try {
+        const et = new Date(new Date().toLocaleString("en-US",{timeZone:"America/New_York"}));
+        const day=et.getDay(), h=et.getHours(), m=et.getMinutes(), t=h*60+m;
+        if (day===0||day===6) return "closed";
+        if (t>=570&&t<960) return "open"; // 9:30-16:00
+        if (t>=960&&t<1200) return "after-hours";
+        if (t>=240&&t<570) return "pre-market";
+        return "closed";
+      } catch(e) { return "unknown"; }
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       FORMATTERS
+       ══════════════════════════════════════════════════════════════ */
+    const fmt$ = v => v==null?"\u2014":(v<0?"-$"+Math.abs(v).toLocaleString():"$"+v.toLocaleString());
+    const fmtPct = v => v==null?"\u2014":v.toFixed(1)+"%";
+    const fmtNum = (v,d) => v==null?"\u2014":v.toFixed(d===undefined?1:d);
+
+    /* ══════════════════════════════════════════════════════════════
+       CHART COMPONENTS
+       ══════════════════════════════════════════════════════════════ */
+    function MiniBarChart({ data, height }) {
+      const maxVal = Math.max(1, ...data.map(d => d.calls+d.puts));
+      return (
+        <div style={{display:"flex",alignItems:"flex-end",gap:4,height:height||160,padding:"0 4px"}}>
+          {data.map((d,i) => {
+            const cH=(d.calls/maxVal)*100, pH=(d.puts/maxVal)*100;
+            return (
+              <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",height:"100%"}}
+                title={d.range+": "+d.calls+" calls, "+d.puts+" puts"}>
+                <div style={{width:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",flex:1}}>
+                  {d.puts>0&&<div style={{width:"80%",height:pH+"%",backgroundColor:"#ef4444",borderRadius:"3px 3px 0 0",minHeight:2}}/>}
+                  {d.calls>0&&<div style={{width:"80%",height:cH+"%",backgroundColor:"#10b981",borderRadius:d.puts>0?0:"3px 3px 0 0",minHeight:2}}/>}
+                </div>
+                <div style={{fontSize:9,color:"#64748b",marginTop:4,whiteSpace:"nowrap"}}>{d.range}</div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    function MiniScatter({ data, width, height }) {
+      const w=width||400, h=height||160;
+      const pad={t:10,r:10,b:25,l:35}, pw=w-pad.l-pad.r, ph=h-pad.t-pad.b;
+      const [hov, setHov] = useState(null);
+      return (
+        <svg width="100%" viewBox={"0 0 "+w+" "+h} style={{overflow:"visible"}}>
+          {[0,25,50,75,100].map(v => {
+            const x=pad.l+(v/100)*pw, y=pad.t+(1-v/100)*ph;
+            return (<React.Fragment key={v}>
+              <line x1={pad.l} y1={y} x2={pad.l+pw} y2={y} stroke="#1e293b" strokeWidth={1}/>
+              <text x={pad.l-4} y={y+3} fill="#64748b" fontSize={9} textAnchor="end">{v}</text>
+              <line x1={x} y1={pad.t} x2={x} y2={pad.t+ph} stroke="#1e293b" strokeWidth={1}/>
+              <text x={x} y={h-4} fill="#64748b" fontSize={9} textAnchor="middle">{v}</text>
+            </React.Fragment>);
+          })}
+          <text x={w/2} y={h} fill="#475569" fontSize={10} textAnchor="middle">Cheapness</text>
+          <text x={4} y={h/2} fill="#475569" fontSize={10} textAnchor="middle" transform={"rotate(-90,4,"+h/2+")"}>Score</text>
+          {data.map((d,i) => {
+            const cx=pad.l+(d.cheapness/100)*pw, cy=pad.t+(1-d.score/100)*ph;
+            const r=Math.max(4,Math.min(10,(d.tail||0)/1200));
+            return <circle key={i} cx={cx} cy={cy} r={r} fill={d.direction==="call"?"#10b981":"#ef4444"}
+              fillOpacity={0.75} stroke="none" style={{cursor:"pointer"}}
+              onMouseEnter={()=>setHov(d)} onMouseLeave={()=>setHov(null)}/>;
+          })}
+          {hov&&(<g>
+            <rect x={pad.l+(hov.cheapness/100)*pw+8} y={pad.t+(1-hov.score/100)*ph-30} width={120} height={38} rx={4} fill="#1e293b" stroke="#334155"/>
+            <text x={pad.l+(hov.cheapness/100)*pw+14} y={pad.t+(1-hov.score/100)*ph-14} fill="#f1f5f9" fontSize={11} fontWeight={600}>{hov.ticker} {hov.direction}</text>
+            <text x={pad.l+(hov.cheapness/100)*pw+14} y={pad.t+(1-hov.score/100)*ph} fill="#94a3b8" fontSize={10}>Score {fmtNum(hov.score)} | Tail {fmt$(hov.tail)}</text>
+          </g>)}
+        </svg>
+      );
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       MAIN APP
+       ══════════════════════════════════════════════════════════════ */
+    function App() {
+      /* ── State ── */
+      const _KEY = "cBE5Kbq9yllt0Yj29mDQjBcIKfAYQlHF";
+      const [apiKey, setApiKey] = useState(_KEY);
+      const [keyInput, setKeyInput] = useState(_KEY);
+      const [connected, setConnected] = useState(true);
+      const [tickerInput, setTickerInput] = useState("SPY,QQQ,TSLA,NVDA,AAPL,AMD");
+      const [autoRefresh, setAutoRefresh] = useState(true);
+      const [scanning, setScanning] = useState(false);
+      const [progress, setProgress] = useState(null);
+      const [scanError, setScanError] = useState(null);
+      const [lastUpdated, setLastUpdated] = useState(null);
+      const [mktStatus, setMktStatus] = useState(marketStatus());
+
+      const [rawData, setRawData] = useState([]);
       const [sortKey, setSortKey] = useState("score");
       const [sortDir, setSortDir] = useState("desc");
-      const [selectedTrade, setSelectedTrade] = useState(null);
-      const [dragOver, setDragOver] = useState(false);
-      const [error, setError] = useState(null);
-      const [filters, setFilters] = useState({
-        tickers: [],
-        direction: "both",
-        minCheapness: 0,
-        minScore: 0,
-      });
+      const [selected, setSelected] = useState(null);
+      const [filters, setFilters] = useState({tickers:[],direction:"both",minCheapness:0,minScore:0});
 
-      const availableTickers = useMemo(() =>
-        [...new Set(rawData.map(d => d.ticker))].sort(),
-        [rawData]
-      );
+      const histCache = useRef({});
+      const scanTimerRef = useRef(null);
+      const scanRef = useRef(false); // guard for concurrent scans
 
-      const filteredData = useMemo(() => {
-        let data = rawData.filter(d => {
-          if (filters.tickers.length > 0 && !filters.tickers.includes(d.ticker)) return false;
-          if (filters.direction !== "both" && d.direction !== filters.direction) return false;
-          if (d.cheapness < filters.minCheapness) return false;
-          if (d.score < filters.minScore) return false;
-          return true;
-        });
-        data.sort((a, b) => {
-          const av = a[sortKey] ?? 0;
-          const bv = b[sortKey] ?? 0;
-          if (typeof av === "string") return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
-          return sortDir === "asc" ? av - bv : bv - av;
-        });
-        return data;
-      }, [rawData, filters, sortKey, sortDir]);
-
-      const stats = useMemo(() => {
-        if (filteredData.length === 0) return { count: 0, avgCheap: 0, bestScore: 0, bestTail: 0 };
-        return {
-          count: filteredData.length,
-          avgCheap: filteredData.reduce((s, d) => s + d.cheapness, 0) / filteredData.length,
-          bestScore: Math.max(...filteredData.map(d => d.score)),
-          bestTail: Math.max(...filteredData.map(d => d.tail_payoff || 0)),
-        };
-      }, [filteredData]);
-
-      const histogramData = useMemo(() => {
-        const bins = Array.from({ length: 10 }, (_, i) => ({
-          range: `${i * 10}-${(i + 1) * 10}`,
-          count: 0, calls: 0, puts: 0,
-        }));
-        filteredData.forEach(d => {
-          const idx = Math.min(Math.floor(d.cheapness / 10), 9);
-          bins[idx].count++;
-          if (d.direction === "call") bins[idx].calls++;
-          else bins[idx].puts++;
-        });
-        return bins;
-      }, [filteredData]);
-
-      const scatterData = useMemo(() =>
-        filteredData.map(d => ({
-          cheapness: d.cheapness,
-          score: d.score,
-          direction: d.direction,
-          ticker: d.ticker,
-          tail: d.tail_payoff || 0,
-        })),
-        [filteredData]
-      );
-
-      const handleSort = useCallback((key) => {
-        setSortKey(prev => {
-          if (prev === key) {
-            setSortDir(d => d === "asc" ? "desc" : "asc");
-            return key;
-          }
-          setSortDir("desc");
-          return key;
-        });
-      }, []);
-
-      const toggleTicker = useCallback((t) => {
-        setFilters(f => ({
-          ...f,
-          tickers: f.tickers.includes(t)
-            ? f.tickers.filter(x => x !== t)
-            : [...f.tickers, t],
-        }));
-      }, []);
-
-      const handleFile = useCallback((file) => {
-        setError(null);
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          try {
-            const json = JSON.parse(e.target.result);
-            const arr = Array.isArray(json) ? json : [json];
-            if (arr.length === 0 || !arr[0].ticker) {
-              setError("Invalid JSON: expected array of trade objects with 'ticker' field");
-              return;
-            }
-            setRawData(arr);
-            setFilters({ tickers: [], direction: "both", minCheapness: 0, minScore: 0 });
-          } catch (err) {
-            setError("Failed to parse JSON file");
-          }
-        };
-        reader.readAsText(file);
-      }, []);
-
-      const handleDrop = useCallback((e) => {
-        e.preventDefault();
-        setDragOver(false);
-        const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-        if (file) handleFile(file);
-      }, [handleFile]);
-
+      /* ── Market status ticker ── */
       useEffect(() => {
-        const handler = (e) => { if (e.key === "Escape") setSelectedTrade(null); };
-        window.addEventListener("keydown", handler);
-        return () => window.removeEventListener("keydown", handler);
+        const id = setInterval(() => setMktStatus(marketStatus()), 30000);
+        return () => clearInterval(id);
       }, []);
 
-      const SortIcon = ({ col }) => {
-        if (sortKey !== col) return <ChevronDown style={{width:12,height:12,opacity:0.3,display:'inline',marginLeft:4,verticalAlign:'middle'}} />;
-        return sortDir === "asc"
-          ? <ChevronUp style={{width:12,height:12,display:'inline',marginLeft:4,color:'#60a5fa',verticalAlign:'middle'}} />
-          : <ChevronDown style={{width:12,height:12,display:'inline',marginLeft:4,color:'#60a5fa',verticalAlign:'middle'}} />;
+      /* ── Auto-refresh ── */
+      useEffect(() => {
+        if (scanTimerRef.current) { clearInterval(scanTimerRef.current); scanTimerRef.current=null; }
+        if (!autoRefresh || !connected || mktStatus !== "open") return;
+        scanTimerRef.current = setInterval(() => { if (!scanRef.current) doScan(); }, 5*60*1000);
+        return () => { if(scanTimerRef.current) clearInterval(scanTimerRef.current); };
+      }, [autoRefresh, connected, mktStatus]);
+
+      /* ── ESC to close modal ── */
+      useEffect(() => { const h=e=>{if(e.key==="Escape")setSelected(null);}; window.addEventListener("keydown",h); return ()=>window.removeEventListener("keydown",h); }, []);
+
+      /* ── Connect ── */
+      const doConnect = async () => {
+        setScanError(null);
+        try {
+          await getStockPrice("SPY", keyInput);
+          setApiKey(keyInput);
+          setConnected(true);
+        } catch (e) {
+          setScanError("Connection failed: " + e.message);
+        }
       };
 
-      const cardData = [
-        { label: "Opportunities", value: stats.count, icon: <Target style={{width:20,height:20}} />, color: "#60a5fa" },
-        { label: "Avg Cheapness", value: fmtNum(stats.avgCheap), icon: <TrendingUp style={{width:20,height:20}} />, color: "#34d399" },
-        { label: "Best Score", value: fmtNum(stats.bestScore), icon: <Zap style={{width:20,height:20}} />, color: "#facc15" },
-        { label: "Best Tail Payoff", value: fmt$(stats.bestTail), icon: <DollarSign style={{width:20,height:20}} />, color: "#c084fc" },
-      ];
+      /* ── Scan ── */
+      const doScan = async () => {
+        if (scanRef.current || !apiKey) return;
+        scanRef.current = true;
+        setScanning(true);
+        setScanError(null);
+        const tickers = tickerInput.split(",").map(t=>t.trim().toUpperCase()).filter(Boolean);
+        const allStrats = [];
 
-      const columns = [
-        { key: "ticker", label: "Ticker", align: "left" },
-        { key: "direction", label: "Dir", align: "center" },
-        { key: "long_strike", label: "Long Leg", align: "left" },
-        { key: "short_strike", label: "Short Leg", align: "left" },
-        { key: "ratio", label: "Ratio", align: "center" },
-        { key: "net_premium", label: "Net $", align: "right" },
-        { key: "cheapness", label: "Cheap", align: "right" },
-        { key: "tail_payoff", label: "Tail $", align: "right" },
-        { key: "score", label: "Score", align: "right" },
-      ];
+        try {
+          for (let i = 0; i < tickers.length; i++) {
+            const ticker = tickers[i];
+            setProgress({ ticker, idx:i, total:tickers.length });
+            try {
+              // Stock price
+              const price = await getStockPrice(ticker, apiKey);
+              if (!price) continue;
 
+              // Historical (cached)
+              if (!histCache.current[ticker]) {
+                const bars = await getHistorical(ticker, apiKey);
+                histCache.current[ticker] = { rv:calcRV(bars), mm:calcMaxMoves(bars) };
+              }
+              const { rv, mm } = histCache.current[ticker];
+
+              // Option chains
+              const { chains, underlyingPrice } = await fetchChains(ticker, apiKey);
+              const S = underlyingPrice || price;
+
+              // Categorize expirations
+              const today = new Date(); today.setHours(0,0,0,0);
+              const shortExps = [], longExps = [];
+              for (const exp of Object.keys(chains)) {
+                const dte = Math.round((new Date(exp+"T12:00:00")-today)/864e5);
+                if (dte>=0 && dte<=14) shortExps.push(exp);
+                if (dte>=0 && dte<=120) longExps.push(exp);
+              }
+
+              // Find cheap options + build backspreads
+              for (const le of longExps) {
+                const lChain = { calls:chains[le].calls, puts:chains[le].puts };
+                const cheap = findCheapOptions(lChain, S, rv, mm);
+                if (!cheap.length) continue;
+                for (const se of shortExps) {
+                  if (se > le) continue;
+                  const sChain = { calls:chains[se].calls, puts:chains[se].puts };
+                  const bs = buildBackspreads(cheap, sChain, S);
+                  allStrats.push(...bs);
+                }
+              }
+            } catch (err) {
+              console.error("Error scanning "+ticker+":", err);
+            }
+          }
+
+          const ranked = rankAll(allStrats, 50);
+          setRawData(ranked);
+          setLastUpdated(new Date());
+          setFilters(f => ({...f, tickers:[]}));
+        } catch (err) {
+          setScanError(err.message);
+        } finally {
+          setScanning(false);
+          setProgress(null);
+          scanRef.current = false;
+        }
+      };
+
+      /* ── Auto-scan on first load ── */
+      const didInitialScan = useRef(false);
+      useEffect(() => { if (connected && !didInitialScan.current) { didInitialScan.current=true; doScan(); } }, [connected]);
+
+      /* ── JSON upload ── */
+      const loadFile = useCallback((file) => {
+        setScanError(null);
+        const r = new FileReader();
+        r.onload = e => {
+          try {
+            const j = JSON.parse(e.target.result);
+            const arr = Array.isArray(j)?j:[j];
+            if (!arr.length||!arr[0].ticker) { setScanError("Invalid JSON format"); return; }
+            setRawData(arr); setLastUpdated(new Date());
+            setFilters({tickers:[],direction:"both",minCheapness:0,minScore:0});
+          } catch(err) { setScanError("Failed to parse JSON"); }
+        };
+        r.readAsText(file);
+      }, []);
+
+      /* ── Derived data ── */
+      const allTickers = useMemo(() => [...new Set(rawData.map(d=>d.ticker))].sort(), [rawData]);
+
+      const filtered = useMemo(() => {
+        let d = rawData.filter(r => {
+          if(filters.tickers.length&&!filters.tickers.includes(r.ticker)) return false;
+          if(filters.direction!=="both"&&r.direction!==filters.direction) return false;
+          if(r.cheapness<filters.minCheapness) return false;
+          if(r.score<filters.minScore) return false;
+          return true;
+        });
+        d.sort((a,b)=>{const av=a[sortKey]??0,bv=b[sortKey]??0;
+          if(typeof av==="string") return sortDir==="asc"?av.localeCompare(bv):bv.localeCompare(av);
+          return sortDir==="asc"?av-bv:bv-av;});
+        return d;
+      }, [rawData,filters,sortKey,sortDir]);
+
+      const stats = useMemo(() => {
+        if(!filtered.length) return {count:0,avgCheap:0,bestScore:0,bestTail:0};
+        return { count:filtered.length, avgCheap:filtered.reduce((s,d)=>s+d.cheapness,0)/filtered.length,
+          bestScore:Math.max(...filtered.map(d=>d.score)), bestTail:Math.max(...filtered.map(d=>d.tail_payoff||0)) };
+      }, [filtered]);
+
+      const histData = useMemo(() => {
+        const bins=Array.from({length:10},(_,i)=>({range:i*10+"-"+(i+1)*10,calls:0,puts:0}));
+        filtered.forEach(d=>{const idx=Math.min(Math.floor(d.cheapness/10),9); d.direction==="call"?bins[idx].calls++:bins[idx].puts++;});
+        return bins;
+      }, [filtered]);
+
+      const scatterData = useMemo(() => filtered.map(d=>({cheapness:d.cheapness,score:d.score,direction:d.direction,ticker:d.ticker,tail:d.tail_payoff||0})), [filtered]);
+
+      const doSort = useCallback(key => {
+        setSortKey(p=>{if(p===key){setSortDir(d=>d==="asc"?"desc":"asc");return key;} setSortDir("desc"); return key;});
+      }, []);
+      const toggleTicker = useCallback(t => {
+        setFilters(f=>({...f,tickers:f.tickers.includes(t)?f.tickers.filter(x=>x!==t):[...f.tickers,t]}));
+      }, []);
+      const hasFilters = filters.tickers.length||filters.direction!=="both"||filters.minCheapness>0||filters.minScore>0;
+
+      const box = {backgroundColor:"#0f172a",border:"1px solid #1e293b",borderRadius:12,padding:16,marginBottom:24};
+      const dirColor = d => d==="call"?"#10b981":"#ef4444";
+      const dirBg = d => d==="call"?"rgba(16,185,129,0.15)":"rgba(239,68,68,0.15)";
+      const scoreBg = s => s>=85?"rgba(234,179,8,0.2)":s>=70?"rgba(16,185,129,0.2)":s>=50?"rgba(59,130,246,0.2)":"#334155";
+      const scoreColor = s => s>=85?"#fde047":s>=70?"#6ee7b7":s>=50?"#93c5fd":"#94a3b8";
+      const mktDot = mktStatus==="open"?"#22c55e":mktStatus==="pre-market"||mktStatus==="after-hours"?"#eab308":"#64748b";
+      const mktLabel = mktStatus==="open"?"Market Open":mktStatus==="pre-market"?"Pre-Market":mktStatus==="after-hours"?"After Hours":"Market Closed";
+
+      /* ═══════════════════════ RENDER ═══════════════════════ */
       return (
-        <div style={{minHeight:'100vh',backgroundColor:'#020617',color:'#f1f5f9',padding:16,fontFamily:'-apple-system,BlinkMacSystemFont,sans-serif'}}>
-          {/* Header */}
-          <div style={{display:'flex',flexWrap:'wrap',alignItems:'center',justifyContent:'space-between',gap:16,marginBottom:24}}>
+        <div style={{minHeight:"100vh",backgroundColor:"#020617",color:"#f1f5f9",padding:16}}>
+
+          {/* ── Header ── */}
+          <div style={{display:"flex",flexWrap:"wrap",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:16}}>
             <div>
-              <h1 style={{fontSize:24,fontWeight:'bold',letterSpacing:'-0.025em',display:'flex',alignItems:'center',gap:8,margin:0}}>
-                <Zap style={{width:24,height:24,color:'#facc15'}} />
-                Ratio Backspread Scanner
-              </h1>
-              <p style={{fontSize:13,color:'#94a3b8',marginTop:4}}>
-                Taleb-style convexity harvesting — cheap wings, premium-neutral financing
-              </p>
+              <h1 style={{fontSize:22,fontWeight:"bold",margin:0}}>{"\u26A1"} Ratio Backspread Scanner</h1>
+              <p style={{fontSize:12,color:"#94a3b8",marginTop:2}}>Taleb-style convexity harvesting &mdash; live Polygon data, 5-min auto-refresh</p>
             </div>
-            <div style={{display:'flex',alignItems:'center',gap:12}}>
-              <label
-                style={{display:'flex',alignItems:'center',gap:8,padding:'8px 16px',borderRadius:8,border:`2px dashed ${dragOver ? '#60a5fa' : '#475569'}`,cursor:'pointer',backgroundColor:dragOver ? 'rgba(59,130,246,0.1)' : 'transparent',transition:'all 0.2s'}}
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={handleDrop}
-              >
-                <Upload style={{width:16,height:16}} />
-                <span style={{fontSize:14}}>Load JSON</span>
-                <input type="file" accept=".json" style={{display:'none'}} onChange={(e) => e.target.files && e.target.files[0] && handleFile(e.target.files[0])} />
-              </label>
-              <button onClick={() => { setRawData(DEMO_DATA); setFilters({ tickers: [], direction: "both", minCheapness: 0, minScore: 0 }); setError(null); }}
-                style={{display:'flex',alignItems:'center',gap:4,padding:'8px 12px',borderRadius:8,backgroundColor:'#1e293b',border:'none',color:'#f1f5f9',fontSize:14,cursor:'pointer'}}>
-                <RotateCcw style={{width:12,height:12}} /> Demo
-              </button>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",backgroundColor:mktDot}}></span>
+              <span style={{fontSize:13,color:"#94a3b8"}}>{mktLabel}</span>
+              {lastUpdated && <span style={{fontSize:11,color:"#475569",marginLeft:8}}>Updated {lastUpdated.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/New_York"})} ET</span>}
             </div>
           </div>
 
-          {error && (
-            <div style={{marginBottom:16,padding:12,borderRadius:8,backgroundColor:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.3)',color:'#fca5a5',fontSize:14,display:'flex',alignItems:'center',gap:8}}>
-              <XIcon style={{width:16,height:16,flexShrink:0}} />
-              {error}
-              <button onClick={() => setError(null)} style={{marginLeft:'auto',color:'#f87171',background:'none',border:'none',cursor:'pointer'}}>dismiss</button>
+          {/* ── Controls Bar ── */}
+          <div style={{...box, marginBottom:16, padding:12}}>
+            <div style={{display:"flex",flexWrap:"wrap",alignItems:"center",gap:12}}>
+              <span style={{fontSize:13,color:"#34d399"}}>{"\u2713"} Live</span>
+              <div style={{width:1,height:20,backgroundColor:"#334155"}}></div>
+              <span style={{fontSize:12,color:"#94a3b8"}}>Tickers:</span>
+              <input type="text" value={tickerInput} onChange={e=>setTickerInput(e.target.value)} style={{width:280,fontSize:12}} />
+              <button onClick={doScan} disabled={scanning}
+                style={{padding:"6px 16px",borderRadius:6,border:"none",fontWeight:600,fontSize:13,cursor:scanning?"not-allowed":"pointer",
+                  backgroundColor:scanning?"#334155":"#3b82f6",color:scanning?"#64748b":"#fff"}}>
+                {scanning ? "Scanning..." : "Scan Now"}
+              </button>
+              <label style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#94a3b8",cursor:"pointer"}}>
+                <input type="checkbox" checked={autoRefresh} onChange={e=>setAutoRefresh(e.target.checked)} style={{accentColor:"#3b82f6"}} />
+                Auto-refresh {mktStatus==="open"?"(5 min)":"(paused)"}
+              </label>
+              <div style={{display:"flex",gap:8,marginLeft:"auto"}}>
+                <label style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",borderRadius:6,border:"1px dashed #475569",cursor:"pointer",fontSize:12,color:"#94a3b8"}}>
+                  {"\u2B06"} JSON
+                  <input type="file" accept=".json" style={{display:"none"}} onChange={e=>e.target.files&&e.target.files[0]&&loadFile(e.target.files[0])}/>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Scan Progress ── */}
+          {scanning && progress && (
+            <div style={{...box, marginBottom:16, padding:12}}>
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <span style={{fontSize:13,color:"#60a5fa",animation:"pulse 1.5s infinite"}}>Scanning {progress.ticker} ({progress.idx+1}/{progress.total})</span>
+                <div style={{flex:1,height:4,backgroundColor:"#1e293b",borderRadius:99}}>
+                  <div style={{height:4,borderRadius:99,backgroundColor:"#3b82f6",width:((progress.idx+1)/progress.total*100)+"%",transition:"width 0.3s"}}/>
+                </div>
+                <span style={{fontSize:12,color:"#64748b"}}>{Math.round((progress.idx+1)/progress.total*100)}%</span>
+              </div>
             </div>
           )}
 
-          {/* Summary Cards */}
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:16,marginBottom:24}}>
-            {cardData.map(card => (
-              <div key={card.label} style={{backgroundColor:'#0f172a',border:'1px solid #1e293b',borderRadius:12,padding:16}}>
-                <div style={{display:'flex',alignItems:'center',gap:8,color:'#94a3b8',fontSize:11,textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:8}}>
-                  <span style={{color:card.color}}>{card.icon}</span>
-                  {card.label}
-                </div>
-                <div style={{fontSize:24,fontWeight:'bold'}}>{card.value}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Filter Bar */}
-          <div style={{backgroundColor:'#0f172a',border:'1px solid #1e293b',borderRadius:12,padding:16,marginBottom:24}}>
-            <div style={{display:'flex',flexWrap:'wrap',alignItems:'center',gap:16}}>
-              <div style={{display:'flex',alignItems:'center',gap:4,color:'#94a3b8',fontSize:13}}>
-                <Filter style={{width:16,height:16}} /> Filters
-              </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
-                {availableTickers.map(t => (
-                  <button key={t} onClick={() => toggleTicker(t)}
-                    style={{padding:'2px 8px',borderRadius:4,fontSize:12,fontWeight:500,cursor:'pointer',border:'1px solid',
-                      backgroundColor: filters.tickers.includes(t) || filters.tickers.length === 0 ? 'rgba(59,130,246,0.2)' : '#1e293b',
-                      color: filters.tickers.includes(t) || filters.tickers.length === 0 ? '#93c5fd' : '#64748b',
-                      borderColor: filters.tickers.includes(t) || filters.tickers.length === 0 ? 'rgba(59,130,246,0.3)' : '#334155'}}>
-                    {t}
-                  </button>
-                ))}
-              </div>
-              <div style={{display:'flex',borderRadius:8,overflow:'hidden',border:'1px solid #334155'}}>
-                {["both","call","put"].map(d => (
-                  <button key={d} onClick={() => setFilters(f => ({ ...f, direction: d }))}
-                    style={{padding:'4px 12px',fontSize:12,fontWeight:500,cursor:'pointer',border:'none',
-                      backgroundColor: filters.direction === d
-                        ? d === "call" ? 'rgba(16,185,129,0.2)' : d === "put" ? 'rgba(239,68,68,0.2)' : 'rgba(59,130,246,0.2)'
-                        : '#1e293b',
-                      color: filters.direction === d
-                        ? d === "call" ? '#6ee7b7' : d === "put" ? '#fca5a5' : '#93c5fd'
-                        : '#64748b'}}>
-                    {d === "both" ? "All" : d.charAt(0).toUpperCase() + d.slice(1) + "s"}
-                  </button>
-                ))}
-              </div>
-              <div style={{display:'flex',alignItems:'center',gap:8,fontSize:12,color:'#94a3b8'}}>
-                <span>Cheap &ge; {filters.minCheapness}</span>
-                <input type="range" min="0" max="100" step="5" value={filters.minCheapness}
-                  onChange={(e) => setFilters(f => ({ ...f, minCheapness: +e.target.value }))}
-                  style={{width:96,accentColor:'#3b82f6'}} />
-              </div>
-              <div style={{display:'flex',alignItems:'center',gap:8,fontSize:12,color:'#94a3b8'}}>
-                <span>Score &ge; {filters.minScore}</span>
-                <input type="range" min="0" max="100" step="5" value={filters.minScore}
-                  onChange={(e) => setFilters(f => ({ ...f, minScore: +e.target.value }))}
-                  style={{width:96,accentColor:'#3b82f6'}} />
-              </div>
-              {(filters.tickers.length > 0 || filters.direction !== "both" || filters.minCheapness > 0 || filters.minScore > 0) && (
-                <button onClick={() => setFilters({ tickers: [], direction: "both", minCheapness: 0, minScore: 0 })}
-                  style={{padding:'4px 8px',borderRadius:4,fontSize:12,color:'#94a3b8',backgroundColor:'#1e293b',border:'none',cursor:'pointer'}}>
-                  Clear
-                </button>
-              )}
+          {/* ── Error ── */}
+          {scanError && (
+            <div style={{marginBottom:16,padding:12,borderRadius:8,backgroundColor:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",color:"#fca5a5",fontSize:13}}>
+              {scanError}
+              <button onClick={()=>setScanError(null)} style={{marginLeft:12,color:"#f87171",background:"none",border:"none",cursor:"pointer",fontSize:12}}>dismiss</button>
             </div>
-          </div>
+          )}
 
-          {/* Main Table */}
-          <div style={{backgroundColor:'#0f172a',border:'1px solid #1e293b',borderRadius:12,overflow:'hidden',marginBottom:24}}>
-            <div style={{overflowX:'auto'}}>
-              <table style={{width:'100%',fontSize:14,borderCollapse:'collapse'}}>
-                <thead>
-                  <tr style={{borderBottom:'1px solid #1e293b'}}>
-                    {columns.map(col => (
-                      <th key={col.key} onClick={() => handleSort(col.key)}
-                        style={{padding:'12px 12px',color:'#94a3b8',fontSize:11,textTransform:'uppercase',letterSpacing:'0.05em',fontWeight:600,
-                          textAlign:col.align,cursor:'pointer',userSelect:'none',whiteSpace:'nowrap'}}>
-                        {col.label}<SortIcon col={col.key} />
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredData.length === 0 ? (
-                    <tr><td colSpan={9} style={{textAlign:'center',padding:'48px 0',color:'#64748b'}}>
-                      No opportunities match your filters
-                    </td></tr>
-                  ) : filteredData.map((d, i) => (
-                    <tr key={i} onClick={() => setSelectedTrade(d)}
-                      style={{borderBottom:'1px solid rgba(30,41,59,0.5)',cursor:'pointer',transition:'background 0.15s'}}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor='rgba(30,41,59,0.5)'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor='transparent'}>
-                      <td style={{padding:'10px 12px',fontWeight:500}}>{d.ticker}</td>
-                      <td style={{padding:'10px 12px',textAlign:'center'}}>
-                        <span style={{padding:'2px 6px',borderRadius:4,fontSize:12,fontWeight:500,
-                          backgroundColor:d.direction === "call" ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
-                          color:d.direction === "call" ? '#34d399' : '#f87171'}}>
-                          {d.direction === "call" ? "C" : "P"}
-                        </span>
-                      </td>
-                      <td style={{padding:'10px 12px',color:'#cbd5e1'}}>
-                        <span style={{fontWeight:500}}>${d.long_strike}</span>
-                        <span style={{color:'#64748b',fontSize:12,marginLeft:4}}>{d.long_exp.slice(5)} @${d.long_price} x{d.long_qty}</span>
-                      </td>
-                      <td style={{padding:'10px 12px',color:'#cbd5e1'}}>
-                        <span style={{fontWeight:500}}>${d.short_strike}</span>
-                        <span style={{color:'#64748b',fontSize:12,marginLeft:4}}>{d.short_exp.slice(5)} @${d.short_price} x{d.short_qty}</span>
-                      </td>
-                      <td style={{padding:'10px 12px',textAlign:'center',color:'#cbd5e1'}}>{d.ratio}</td>
-                      <td style={{padding:'10px 12px',textAlign:'right',color:d.net_premium < 0 ? '#34d399' : d.net_premium > 0 ? '#f87171' : '#94a3b8'}}>
-                        {fmt$(d.net_premium)}
-                      </td>
-                      <td style={{padding:'10px 12px',textAlign:'right'}}>
-                        <span style={{fontWeight:500}}>{fmtNum(d.cheapness)}</span>
-                        <div style={{width:'100%',backgroundColor:'#1e293b',borderRadius:9999,height:4,marginTop:4}}>
-                          <div style={{height:4,borderRadius:9999,backgroundColor:'#10b981',width:`${d.cheapness}%`}} />
-                        </div>
-                      </td>
-                      <td style={{padding:'10px 12px',textAlign:'right',color:'#cbd5e1'}}>{fmt$(d.tail_payoff)}</td>
-                      <td style={{padding:'10px 12px',textAlign:'right'}}>
-                        <span style={{padding:'2px 8px',borderRadius:9999,fontSize:12,fontWeight:700,
-                          backgroundColor:d.score >= 85 ? 'rgba(234,179,8,0.2)' : d.score >= 70 ? 'rgba(16,185,129,0.2)' : d.score >= 50 ? 'rgba(59,130,246,0.2)' : '#334155',
-                          color:d.score >= 85 ? '#fde047' : d.score >= 70 ? '#6ee7b7' : d.score >= 50 ? '#93c5fd' : '#94a3b8'}}>
-                          {fmtNum(d.score)}
-                        </span>
-                      </td>
-                    </tr>
+          {/* ── Empty state ── */}
+          {!rawData.length && !scanning && (
+            <div style={{textAlign:"center",padding:"60px 20px",color:"#475569"}}>
+              <div style={{fontSize:48,marginBottom:16}}>{"\u26A1"}</div>
+              <div style={{fontSize:18,color:"#94a3b8",marginBottom:8}}>No scan results yet</div>
+              <div style={{fontSize:14}}>Scanning will begin automatically&hellip;</div>
+            </div>
+          )}
+
+          {rawData.length > 0 && (<>
+            {/* ── Summary Cards ── */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))",gap:16,marginBottom:24}}>
+              {[
+                {label:"Opportunities",value:stats.count,color:"#60a5fa",icon:"\u25CE"},
+                {label:"Avg Cheapness",value:fmtNum(stats.avgCheap),color:"#34d399",icon:"\u2197"},
+                {label:"Best Score",value:fmtNum(stats.bestScore),color:"#facc15",icon:"\u26A1"},
+                {label:"Best Tail Payoff",value:fmt$(stats.bestTail),color:"#c084fc",icon:"$"},
+              ].map(c => (
+                <div key={c.label} style={{...box,marginBottom:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6,color:"#94a3b8",fontSize:11,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>
+                    <span style={{color:c.color,fontSize:16}}>{c.icon}</span> {c.label}
+                  </div>
+                  <div style={{fontSize:24,fontWeight:"bold"}}>{c.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Filter Bar ── */}
+            <div style={box}>
+              <div style={{display:"flex",flexWrap:"wrap",alignItems:"center",gap:12}}>
+                <span style={{color:"#94a3b8",fontSize:13}}>{"\u25BE"} Filters</span>
+                <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                  {allTickers.map(t => (
+                    <button key={t} onClick={()=>toggleTicker(t)}
+                      style={{padding:"2px 8px",borderRadius:4,fontSize:12,fontWeight:500,cursor:"pointer",border:"1px solid",
+                        backgroundColor:filters.tickers.includes(t)||!filters.tickers.length?"rgba(59,130,246,0.2)":"#1e293b",
+                        color:filters.tickers.includes(t)||!filters.tickers.length?"#93c5fd":"#64748b",
+                        borderColor:filters.tickers.includes(t)||!filters.tickers.length?"rgba(59,130,246,0.3)":"#334155"}}>{t}</button>
                   ))}
-                </tbody>
-              </table>
+                </div>
+                <div style={{display:"flex",borderRadius:8,overflow:"hidden",border:"1px solid #334155"}}>
+                  {["both","call","put"].map(d => (
+                    <button key={d} onClick={()=>setFilters(f=>({...f,direction:d}))}
+                      style={{padding:"4px 12px",fontSize:12,fontWeight:500,cursor:"pointer",border:"none",
+                        backgroundColor:filters.direction===d?(d==="call"?"rgba(16,185,129,0.2)":d==="put"?"rgba(239,68,68,0.2)":"rgba(59,130,246,0.2)"):"#1e293b",
+                        color:filters.direction===d?(d==="call"?"#6ee7b7":d==="put"?"#fca5a5":"#93c5fd"):"#64748b"}}>
+                      {d==="both"?"All":d[0].toUpperCase()+d.slice(1)+"s"}
+                    </button>
+                  ))}
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#94a3b8"}}>
+                  Cheap {"\u2265"} {filters.minCheapness}
+                  <input type="range" min="0" max="100" step="5" value={filters.minCheapness} onChange={e=>setFilters(f=>({...f,minCheapness:+e.target.value}))} style={{width:80}}/>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#94a3b8"}}>
+                  Score {"\u2265"} {filters.minScore}
+                  <input type="range" min="0" max="100" step="5" value={filters.minScore} onChange={e=>setFilters(f=>({...f,minScore:+e.target.value}))} style={{width:80}}/>
+                </div>
+                {hasFilters && <button onClick={()=>setFilters({tickers:[],direction:"both",minCheapness:0,minScore:0})} style={{padding:"4px 8px",borderRadius:4,fontSize:12,color:"#94a3b8",backgroundColor:"#1e293b",border:"none",cursor:"pointer"}}>Clear</button>}
+              </div>
             </div>
-          </div>
 
-          {/* Charts */}
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(400px,1fr))',gap:16,marginBottom:24}}>
-            <div style={{backgroundColor:'#0f172a',border:'1px solid #1e293b',borderRadius:12,padding:16}}>
-              <h3 style={{fontSize:14,fontWeight:500,color:'#94a3b8',marginBottom:12,marginTop:0}}>Cheapness Distribution</h3>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={histogramData} barGap={1}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="range" tick={{ fill: "#94a3b8", fontSize: 11 }} />
-                  <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} allowDecimals={false} />
-                  <Tooltip contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #334155", borderRadius: 8, color: "#e2e8f0" }} />
-                  <Bar dataKey="calls" stackId="a" fill={CALL_COLOR} name="Calls" />
-                  <Bar dataKey="puts" stackId="a" fill={PUT_COLOR} name="Puts" radius={[4,4,0,0]} />
-                  <Legend wrapperStyle={{ fontSize: 11, color: "#94a3b8" }} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <div style={{backgroundColor:'#0f172a',border:'1px solid #1e293b',borderRadius:12,padding:16}}>
-              <h3 style={{fontSize:14,fontWeight:500,color:'#94a3b8',marginBottom:12,marginTop:0}}>Score vs Cheapness</h3>
-              <ResponsiveContainer width="100%" height={220}>
-                <ScatterChart>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="cheapness" name="Cheapness" tick={{ fill: "#94a3b8", fontSize: 11 }} domain={[0,100]}
-                    label={{ value: "Cheapness", position: "bottom", fill: "#64748b", fontSize: 11, offset: -2 }} />
-                  <YAxis dataKey="score" name="Score" tick={{ fill: "#94a3b8", fontSize: 11 }} domain={[0,100]}
-                    label={{ value: "Score", angle: -90, position: "insideLeft", fill: "#64748b", fontSize: 11 }} />
-                  <Tooltip content={({ payload }) => {
-                    if (!payload || !payload.length) return null;
-                    const d = payload[0].payload;
-                    return (
-                      <div style={{backgroundColor:'#1e293b',border:'1px solid #334155',borderRadius:8,padding:8,fontSize:12}}>
-                        <div style={{fontWeight:700,color:'#f1f5f9'}}>{d.ticker}
-                          <span style={{color: d.direction === "call" ? '#34d399' : '#f87171'}}> {d.direction}</span>
-                        </div>
-                        <div style={{color:'#94a3b8'}}>Cheapness: {fmtNum(d.cheapness)} | Score: {fmtNum(d.score)}</div>
-                        <div style={{color:'#94a3b8'}}>Tail: {fmt$(d.tail)}</div>
-                      </div>
-                    );
-                  }} />
-                  <Scatter data={scatterData} fill="#8884d8">
-                    {scatterData.map((d, i) => (
-                      <Cell key={i} fill={CHART_COLORS[d.direction]} fillOpacity={0.8} />
+            {/* ── Table ── */}
+            <div style={{...box,padding:0,overflow:"hidden"}}>
+              <div style={{overflowX:"auto"}}>
+                <table style={{fontSize:14}}>
+                  <thead>
+                    <tr style={{borderBottom:"1px solid #1e293b"}}>
+                      {[{k:"ticker",l:"Ticker",a:"left"},{k:"direction",l:"Dir",a:"center"},{k:"long_strike",l:"Long Leg",a:"left"},
+                        {k:"short_strike",l:"Short Leg",a:"left"},{k:"ratio",l:"Ratio",a:"center"},{k:"net_premium",l:"Net $",a:"right"},
+                        {k:"cheapness",l:"Cheap",a:"right"},{k:"tail_payoff",l:"Tail $",a:"right"},{k:"score",l:"Score",a:"right"}
+                      ].map(c => (
+                        <th key={c.k} onClick={()=>doSort(c.k)}
+                          style={{padding:"12px",color:"#94a3b8",fontSize:11,textTransform:"uppercase",letterSpacing:"0.05em",fontWeight:600,textAlign:c.a,cursor:"pointer",userSelect:"none",whiteSpace:"nowrap"}}>
+                          {c.l} {sortKey===c.k?(sortDir==="asc"?"\u25B2":"\u25BC"):""}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {!filtered.length ? (
+                      <tr><td colSpan={9} style={{textAlign:"center",padding:"48px 0",color:"#64748b"}}>No opportunities match your filters</td></tr>
+                    ) : filtered.map((d,i) => (
+                      <tr key={i} onClick={()=>setSelected(d)} style={{borderBottom:"1px solid rgba(30,41,59,0.5)",cursor:"pointer"}}
+                        onMouseEnter={e=>e.currentTarget.style.backgroundColor="rgba(30,41,59,0.5)"}
+                        onMouseLeave={e=>e.currentTarget.style.backgroundColor="transparent"}>
+                        <td style={{padding:"10px 12px",fontWeight:500}}>{d.ticker}</td>
+                        <td style={{padding:"10px 12px",textAlign:"center"}}>
+                          <span style={{padding:"2px 6px",borderRadius:4,fontSize:12,fontWeight:500,backgroundColor:dirBg(d.direction),color:dirColor(d.direction)}}>
+                            {d.direction==="call"?"C":"P"}
+                          </span>
+                        </td>
+                        <td style={{padding:"10px 12px",color:"#cbd5e1"}}>
+                          <span style={{fontWeight:500}}>${d.long_strike}</span>
+                          <span style={{color:"#64748b",fontSize:12,marginLeft:4}}>{d.long_exp.slice(5)} @${d.long_price} x{d.long_qty}</span>
+                        </td>
+                        <td style={{padding:"10px 12px",color:"#cbd5e1"}}>
+                          <span style={{fontWeight:500}}>${d.short_strike}</span>
+                          <span style={{color:"#64748b",fontSize:12,marginLeft:4}}>{d.short_exp.slice(5)} @${d.short_price} x{d.short_qty}</span>
+                        </td>
+                        <td style={{padding:"10px 12px",textAlign:"center",color:"#cbd5e1"}}>{d.ratio}</td>
+                        <td style={{padding:"10px 12px",textAlign:"right",color:d.net_premium<0?"#34d399":d.net_premium>0?"#f87171":"#94a3b8"}}>{fmt$(d.net_premium)}</td>
+                        <td style={{padding:"10px 12px",textAlign:"right"}}>
+                          <span style={{fontWeight:500}}>{fmtNum(d.cheapness)}</span>
+                          <div style={{width:"100%",backgroundColor:"#1e293b",borderRadius:99,height:4,marginTop:4}}>
+                            <div style={{height:4,borderRadius:99,backgroundColor:"#10b981",width:d.cheapness+"%"}}/>
+                          </div>
+                        </td>
+                        <td style={{padding:"10px 12px",textAlign:"right",color:"#cbd5e1"}}>{fmt$(d.tail_payoff)}</td>
+                        <td style={{padding:"10px 12px",textAlign:"right"}}>
+                          <span style={{padding:"2px 8px",borderRadius:99,fontSize:12,fontWeight:700,backgroundColor:scoreBg(d.score),color:scoreColor(d.score)}}>
+                            {fmtNum(d.score)}
+                          </span>
+                        </td>
+                      </tr>
                     ))}
-                  </Scatter>
-                </ScatterChart>
-              </ResponsiveContainer>
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
 
-          {/* Detail Modal */}
-          {selectedTrade && (
-            <div style={{position:'fixed',inset:0,backgroundColor:'rgba(0,0,0,0.6)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:16}}
-              onClick={() => setSelectedTrade(null)}>
-              <div style={{backgroundColor:'#0f172a',border:'1px solid #334155',borderRadius:16,maxWidth:640,width:'100%',maxHeight:'90vh',overflowY:'auto',padding:24}}
-                onClick={(e) => e.stopPropagation()}>
-                {/* Header */}
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20}}>
-                  <div style={{display:'flex',alignItems:'center',gap:12}}>
-                    <h2 style={{fontSize:20,fontWeight:700,margin:0}}>{selectedTrade.ticker}</h2>
-                    <span style={{padding:'2px 8px',borderRadius:4,fontSize:14,fontWeight:500,
-                      backgroundColor:selectedTrade.direction === "call" ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
-                      color:selectedTrade.direction === "call" ? '#34d399' : '#f87171'}}>
-                      {selectedTrade.direction.toUpperCase()}
-                    </span>
-                    <span style={{padding:'2px 8px',borderRadius:9999,fontSize:14,fontWeight:700,
-                      backgroundColor:selectedTrade.score >= 85 ? 'rgba(234,179,8,0.2)' : selectedTrade.score >= 70 ? 'rgba(16,185,129,0.2)' : 'rgba(59,130,246,0.2)',
-                      color:selectedTrade.score >= 85 ? '#fde047' : selectedTrade.score >= 70 ? '#6ee7b7' : '#93c5fd'}}>
-                      Score: {fmtNum(selectedTrade.score)}
-                    </span>
-                  </div>
-                  <button onClick={() => setSelectedTrade(null)} style={{color:'#94a3b8',background:'none',border:'none',cursor:'pointer',padding:4}}>
-                    <XIcon style={{width:20,height:20}} />
-                  </button>
+            {/* ── Charts ── */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(340px,1fr))",gap:16,marginBottom:24}}>
+              <div style={box}>
+                <h3 style={{fontSize:14,fontWeight:500,color:"#94a3b8",marginBottom:8}}>Cheapness Distribution</h3>
+                <div style={{display:"flex",gap:12,fontSize:11,color:"#94a3b8",marginBottom:8}}>
+                  <span><span style={{display:"inline-block",width:10,height:10,backgroundColor:"#10b981",borderRadius:2,marginRight:4,verticalAlign:"middle"}}></span>Calls</span>
+                  <span><span style={{display:"inline-block",width:10,height:10,backgroundColor:"#ef4444",borderRadius:2,marginRight:4,verticalAlign:"middle"}}></span>Puts</span>
                 </div>
+                <MiniBarChart data={histData} height={160}/>
+              </div>
+              <div style={box}>
+                <h3 style={{fontSize:14,fontWeight:500,color:"#94a3b8",marginBottom:8}}>Score vs Cheapness</h3>
+                <div style={{display:"flex",gap:12,fontSize:11,color:"#94a3b8",marginBottom:8}}>
+                  <span><span style={{display:"inline-block",width:10,height:10,backgroundColor:"#10b981",borderRadius:"50%",marginRight:4,verticalAlign:"middle"}}></span>Calls</span>
+                  <span><span style={{display:"inline-block",width:10,height:10,backgroundColor:"#ef4444",borderRadius:"50%",marginRight:4,verticalAlign:"middle"}}></span>Puts</span>
+                </div>
+                <MiniScatter data={scatterData} width={440} height={180}/>
+              </div>
+            </div>
+          </>)}
 
-                {/* Trade structure */}
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:20}}>
-                  <div style={{backgroundColor:'rgba(16,185,129,0.05)',border:'1px solid rgba(16,185,129,0.2)',borderRadius:12,padding:16}}>
-                    <div style={{fontSize:11,color:'#34d399',textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:8}}>Long Leg (Buy)</div>
-                    <div style={{fontSize:18,fontWeight:700}}>${selectedTrade.long_strike}</div>
-                    <div style={{fontSize:13,color:'#94a3b8',marginTop:4}}>Exp: {selectedTrade.long_exp}</div>
-                    <div style={{fontSize:13,color:'#94a3b8'}}>Price: ${selectedTrade.long_price} x {selectedTrade.long_qty}</div>
-                    <div style={{fontSize:13,color:'#cbd5e1',marginTop:4,fontWeight:500}}>Cost: {fmt$(selectedTrade.long_price * selectedTrade.long_qty * 100)}</div>
+          {/* ── Detail Modal ── */}
+          {selected && (
+            <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,backgroundColor:"rgba(0,0,0,0.6)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:50,padding:16}}
+              onClick={()=>setSelected(null)}>
+              <div style={{backgroundColor:"#0f172a",border:"1px solid #334155",borderRadius:16,maxWidth:640,width:"100%",maxHeight:"90vh",overflowY:"auto",padding:24}}
+                onClick={e=>e.stopPropagation()}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+                  <div style={{display:"flex",alignItems:"center",gap:12}}>
+                    <h2 style={{fontSize:20,fontWeight:700,margin:0}}>{selected.ticker}</h2>
+                    <span style={{padding:"2px 8px",borderRadius:4,fontSize:14,fontWeight:500,backgroundColor:dirBg(selected.direction),color:dirColor(selected.direction)}}>
+                      {selected.direction.toUpperCase()}
+                    </span>
+                    <span style={{padding:"2px 8px",borderRadius:99,fontSize:14,fontWeight:700,backgroundColor:scoreBg(selected.score),color:scoreColor(selected.score)}}>
+                      Score: {fmtNum(selected.score)}
+                    </span>
                   </div>
-                  <div style={{backgroundColor:'rgba(239,68,68,0.05)',border:'1px solid rgba(239,68,68,0.2)',borderRadius:12,padding:16}}>
-                    <div style={{fontSize:11,color:'#f87171',textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:8}}>Short Leg (Sell)</div>
-                    <div style={{fontSize:18,fontWeight:700}}>${selectedTrade.short_strike}</div>
-                    <div style={{fontSize:13,color:'#94a3b8',marginTop:4}}>Exp: {selectedTrade.short_exp}</div>
-                    <div style={{fontSize:13,color:'#94a3b8'}}>Price: ${selectedTrade.short_price} x {selectedTrade.short_qty}</div>
-                    <div style={{fontSize:13,color:'#cbd5e1',marginTop:4,fontWeight:500}}>Credit: {fmt$(selectedTrade.short_price * selectedTrade.short_qty * 100)}</div>
+                  <button onClick={()=>setSelected(null)} style={{color:"#94a3b8",background:"none",border:"none",cursor:"pointer",fontSize:20,padding:4}}>{"\u2715"}</button>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
+                  <div style={{backgroundColor:"rgba(16,185,129,0.05)",border:"1px solid rgba(16,185,129,0.2)",borderRadius:12,padding:16}}>
+                    <div style={{fontSize:11,color:"#34d399",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Long Leg (Buy)</div>
+                    <div style={{fontSize:18,fontWeight:700}}>${selected.long_strike}</div>
+                    <div style={{fontSize:13,color:"#94a3b8",marginTop:4}}>Exp: {selected.long_exp}</div>
+                    <div style={{fontSize:13,color:"#94a3b8"}}>Price: ${selected.long_price} x {selected.long_qty}</div>
+                    <div style={{fontSize:13,color:"#cbd5e1",marginTop:4,fontWeight:500}}>Cost: {fmt$(selected.long_price*selected.long_qty*100)}</div>
+                  </div>
+                  <div style={{backgroundColor:"rgba(239,68,68,0.05)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:12,padding:16}}>
+                    <div style={{fontSize:11,color:"#f87171",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Short Leg (Sell)</div>
+                    <div style={{fontSize:18,fontWeight:700}}>${selected.short_strike}</div>
+                    <div style={{fontSize:13,color:"#94a3b8",marginTop:4}}>Exp: {selected.short_exp}</div>
+                    <div style={{fontSize:13,color:"#94a3b8"}}>Price: ${selected.short_price} x {selected.short_qty}</div>
+                    <div style={{fontSize:13,color:"#cbd5e1",marginTop:4,fontWeight:500}}>Credit: {fmt$(selected.short_price*selected.short_qty*100)}</div>
                   </div>
                 </div>
-
-                {/* Metrics */}
-                <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20}}>
-                  {[
-                    { label: "Ratio", value: selectedTrade.ratio },
-                    { label: "Net Premium", value: fmt$(selectedTrade.net_premium) },
-                    { label: "Neutrality", value: fmtPct(selectedTrade.premium_neutral_pct) },
-                    { label: "Tail Payoff", value: fmt$(selectedTrade.tail_payoff) },
-                  ].map(m => (
-                    <div key={m.label} style={{backgroundColor:'#1e293b',borderRadius:8,padding:12}}>
-                      <div style={{fontSize:11,color:'#64748b',textTransform:'uppercase'}}>{m.label}</div>
-                      <div style={{fontSize:15,fontWeight:600,marginTop:2}}>{m.value}</div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+                  {[{l:"Ratio",v:selected.ratio},{l:"Net Premium",v:fmt$(selected.net_premium)},{l:"Neutrality",v:fmtPct(selected.premium_neutral_pct)},{l:"Tail Payoff",v:fmt$(selected.tail_payoff)}].map(m => (
+                    <div key={m.l} style={{backgroundColor:"#1e293b",borderRadius:8,padding:12}}>
+                      <div style={{fontSize:11,color:"#64748b",textTransform:"uppercase"}}>{m.l}</div>
+                      <div style={{fontSize:15,fontWeight:600,marginTop:2}}>{m.v}</div>
                     </div>
                   ))}
                 </div>
-
-                {/* Cheapness */}
-                <div style={{backgroundColor:'#1e293b',borderRadius:8,padding:16,marginBottom:16}}>
-                  <div style={{fontSize:11,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:12}}>Cheapness Analysis</div>
-                  <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,fontSize:14}}>
-                    <div><div style={{color:'#64748b',fontSize:12}}>Composite</div><div style={{fontWeight:700,fontSize:18}}>{fmtNum(selectedTrade.cheapness)}<span style={{fontSize:12,color:'#64748b'}}>/100</span></div></div>
-                    <div><div style={{color:'#64748b',fontSize:12}}>Equidist Ratio</div><div style={{fontWeight:600}}>{fmtNum(selectedTrade.equidist_ratio)}x</div></div>
-                    <div><div style={{color:'#64748b',fontSize:12}}>IV / RV</div><div style={{fontWeight:600,color:selectedTrade.iv_rv < 1 ? '#34d399' : '#f87171'}}>{fmtNum(selectedTrade.iv_rv, 2)}</div></div>
-                    <div><div style={{color:'#64748b',fontSize:12}}>Move Yield</div><div style={{fontWeight:600}}>{fmtNum(selectedTrade.hist_move_yield, 0)}x</div></div>
+                <div style={{backgroundColor:"#1e293b",borderRadius:8,padding:16,marginBottom:16}}>
+                  <div style={{fontSize:11,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:12}}>Cheapness Analysis</div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,fontSize:14}}>
+                    <div><div style={{color:"#64748b",fontSize:12}}>Composite</div><div style={{fontWeight:700,fontSize:18}}>{fmtNum(selected.cheapness)}<span style={{fontSize:12,color:"#64748b"}}>/100</span></div></div>
+                    <div><div style={{color:"#64748b",fontSize:12}}>Equidist Ratio</div><div style={{fontWeight:600}}>{fmtNum(selected.equidist_ratio)}x</div></div>
+                    <div><div style={{color:"#64748b",fontSize:12}}>IV / RV</div><div style={{fontWeight:600,color:selected.iv_rv<1?"#34d399":"#f87171"}}>{fmtNum(selected.iv_rv,2)}</div></div>
+                    <div><div style={{color:"#64748b",fontSize:12}}>Move Yield</div><div style={{fontWeight:600}}>{fmtNum(selected.hist_move_yield,0)}x</div></div>
                   </div>
                 </div>
-
-                {/* Greeks */}
-                <div style={{backgroundColor:'#1e293b',borderRadius:8,padding:16}}>
-                  <div style={{fontSize:11,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:12}}>Greeks at Entry</div>
-                  <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,fontSize:14}}>
-                    <div><div style={{color:'#64748b',fontSize:12}}>Delta</div><div style={{fontWeight:600}}>{fmtNum(selectedTrade.net_delta)}</div></div>
-                    <div><div style={{color:'#64748b',fontSize:12}}>Vega</div><div style={{fontWeight:600}}>{fmtNum(selectedTrade.net_vega)}</div></div>
-                    <div><div style={{color:'#64748b',fontSize:12}}>Theta</div><div style={{fontWeight:600,color:selectedTrade.net_theta < 0 ? '#f87171' : '#34d399'}}>{fmtNum(selectedTrade.net_theta, 2)}/day</div></div>
+                <div style={{backgroundColor:"#1e293b",borderRadius:8,padding:16}}>
+                  <div style={{fontSize:11,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:12}}>Greeks at Entry</div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,fontSize:14}}>
+                    <div><div style={{color:"#64748b",fontSize:12}}>Delta</div><div style={{fontWeight:600}}>{fmtNum(selected.net_delta)}</div></div>
+                    <div><div style={{color:"#64748b",fontSize:12}}>Vega</div><div style={{fontWeight:600}}>{fmtNum(selected.net_vega)}</div></div>
+                    <div><div style={{color:"#64748b",fontSize:12}}>Theta</div><div style={{fontWeight:600,color:selected.net_theta<0?"#f87171":"#34d399"}}>{fmtNum(selected.net_theta,2)}/day</div></div>
                   </div>
                 </div>
               </div>
@@ -572,7 +867,7 @@
       );
     }
 
-    ReactDOM.render(<BackspreadDashboard />, document.getElementById("root"));
+    ReactDOM.render(<App />, document.getElementById("root"));
   </script>
 </body>
 </html>
