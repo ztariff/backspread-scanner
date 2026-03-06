@@ -283,17 +283,12 @@ def scan_ticker(client, ticker, config, args, ranker):
         )
 
         max_price = args.max_price or config.long_max_price
-        min_otm = args.min_otm if args.min_otm is not None else config.long_min_otm_pct
-        max_otm = args.max_otm if args.max_otm is not None else config.long_max_otm_pct
 
         cheap_reports = cheapness.find_cheap_options(
             option_type="both",       # always scan both sides
             max_delta=config.long_max_delta,
             min_delta=getattr(config, 'long_min_delta', 0.02),
-            min_otm_pct=min_otm,
-            max_otm_pct=max_otm,
             max_price=max_price,
-            min_price=getattr(config, 'long_min_price', 0.05),
             min_score=args.min_cheapness,
         )
 

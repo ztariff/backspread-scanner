@@ -173,24 +173,18 @@ class CheapnessAnalyzer:
         option_type: str = "both",
         max_delta: float = 0.20,
         min_delta: float = 0.02,
-        min_otm_pct: float = 0.05,
-        max_otm_pct: float = 0.40,
         max_price: float = 5.00,
-        min_price: float = 0.05,
         min_score: float = 30.0,
     ) -> List[CheapnessReport]:
         """
-        Scan the chain for cheap far-OTM options.
+        Scan the chain for cheap OTM options.
 
         Parameters
         ----------
         option_type : "call", "put", or "both"
-        max_delta   : max abs(delta) — must be far OTM
+        max_delta   : max abs(delta) — must be OTM
         min_delta   : min abs(delta) — must have some sensitivity
-        min_otm_pct : minimum distance OTM as % of underlying
-        max_otm_pct : maximum distance OTM
         max_price   : maximum option price (must be "cheap")
-        min_price   : minimum option price — must have SOME value, not worthless
         min_score   : minimum composite cheapness score to include
         """
         candidates = []
@@ -208,13 +202,8 @@ class CheapnessAnalyzer:
             if c.option_type == "put" and c.strike >= self.S:
                 continue
 
-            # Filter: distance OTM
-            dist_pct = abs(c.strike - self.S) / self.S if self.S > 0 else 0
-            if dist_pct < min_otm_pct or dist_pct > max_otm_pct:
-                continue
-
-            # Filter: must be cheap but not worthless
-            if c.mid_price > max_price or c.mid_price < min_price:
+            # Filter: must be cheap
+            if c.mid_price > max_price or c.mid_price <= 0:
                 continue
 
             # Filter: delta (if available) — not too deep OTM and not too worthless

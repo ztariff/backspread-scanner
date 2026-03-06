@@ -15,15 +15,12 @@ class Config:
     polygon_api_key: str = ""
     rate_limit_pause: float = 0.25  # seconds between API calls
 
-    # ── Long Leg (far OTM — the "lottery tickets") ──────────────
+    # ── Long Leg (cheap OTM options) ──────────────────────────
     long_min_dte: int = 0            # 0 = same-day (0DTE) allowed
     long_max_dte: int = 120          # maximum DTE for long leg
-    long_min_otm_pct: float = 0.03   # min distance OTM as % of underlying (3%)
-    long_max_otm_pct: float = 0.18   # max distance OTM (18%) — keep longs close enough to respond
     max_strike_gap_pct: float = 0.02 # max gap between long & short strikes — longs must be near-adjacent
     long_max_price: float = 5.00     # max per-contract price for "cheap" (dollars)
-    long_min_price: float = 0.05     # min per-contract price — must have SOME value
-    long_max_delta: float = 0.20     # max abs(delta) — must be far OTM
+    long_max_delta: float = 0.20     # max abs(delta) — must be OTM
     long_min_delta: float = 0.02     # min abs(delta) — must have some sensitivity
 
     # ── Short Leg (ATM-ish — the "financing leg") ─────────────
