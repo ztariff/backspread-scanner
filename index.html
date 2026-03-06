@@ -454,7 +454,7 @@
     function findCheapOptions(chain, S, rv, mm, isFutures) {
       const cands = [];
       const all = [...chain.calls, ...chain.puts];
-      console.log("[v3.0] findCheapOptions: S="+S+", total contracts="+all.length+", futures="+!!isFutures);
+      console.log("[v3.1] findCheapOptions: S="+S+", total contracts="+all.length+", futures="+!!isFutures);
       for (const c of all) {
         if (c.option_type==="call"&&c.strike<=S) continue;
         if (c.option_type==="put"&&c.strike>=S) continue;
@@ -471,7 +471,7 @@
           iv_rv_ratio:ir.ratio, move_would_yield:hm.yield, move_yield_ratio:hm.yieldRatio,
           yield_3x: hm.yield3x || null, underlying_price:S });
       }
-      console.log("[v3.0] findCheapOptions: "+cands.length+" cheap candidates found");
+      console.log("[v3.1] findCheapOptions: "+cands.length+" cheap candidates found");
       cands.sort((a,b) => b.cheapness-a.cheapness);
       return cands;
     }
@@ -723,7 +723,7 @@
       const [selectedProducts, setSelectedProducts] = useState(
         FUTURES_PRODUCTS.map(p => p.root) // all selected by default
       );
-      const [autoRefresh, setAutoRefresh] = useState(true);
+      const [autoRefresh, setAutoRefresh] = useState(false);
       const [scanning, setScanning] = useState(false);
       const [progress, setProgress] = useState(null);
       const [scanError, setScanError] = useState(null);
@@ -1010,14 +1010,7 @@
         }
       };
 
-      /* ── Auto-scan on first load (polygon only) ── */
-      const didInitialScan = useRef(false);
-      useEffect(() => {
-        if (connected && dataSource === "polygon" && !didInitialScan.current) {
-          didInitialScan.current = true;
-          doScan();
-        }
-      }, [connected, dataSource]);
+      /* ── No auto-scan on load — user clicks Scan manually ── */
 
       /* ── JSON upload (supports both dashboard format and scan_globex.py output) ── */
       const loadFile = useCallback((file) => {
@@ -1142,7 +1135,7 @@
           <div style={{display:"flex",flexWrap:"wrap",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:16}}>
             <div>
               <h1 style={{fontSize:22,fontWeight:"bold",margin:0}}>{"\u26A1"} Ratio Backspread Scanner</h1>
-              <p style={{fontSize:12,color:"#94a3b8",marginTop:2}}>Taleb-style convexity harvesting &mdash; v3.0</p>
+              <p style={{fontSize:12,color:"#94a3b8",marginTop:2}}>Taleb-style convexity harvesting &mdash; v3.1</p>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",backgroundColor:mktDot}}></span>
@@ -1175,7 +1168,7 @@
                 <>
                   <div style={{width:1,height:20,backgroundColor:"#334155"}}></div>
                   <span style={{fontSize:13,color:"#34d399"}}>{"\u2713"} Live</span>
-                  <span style={{fontSize:10,color:"#475569"}}>v3.0</span>
+                  <span style={{fontSize:10,color:"#475569"}}>v3.1</span>
                 </>
               )}
             </div>
