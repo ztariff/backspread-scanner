@@ -988,6 +988,7 @@
         scanRef.current = true;
         setScanning(true);
         setScanError(null);
+        setProgress({ ticker: "Initializing...", idx: 0, total: 1 });
 
         try {
           let allStrats;
