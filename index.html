@@ -172,6 +172,12 @@
        DATABENTO API CLIENT (Futures)
        ══════════════════════════════════════════════════════════════ */
     const DATABENTO_BASE = "https://hist.databento.com/v0";
+    // CORS proxy needed because Databento API doesn't send Access-Control-Allow-Origin headers
+    const CORS_PROXIES = [
+      "https://corsproxy.io/?",
+      "https://api.allorigins.win/raw?url=",
+    ];
+    let activeCorsProxy = CORS_PROXIES[0];
 
     async function dbnGet(endpoint, dbKey, params={}) {
       const u = new URL(endpoint, DATABENTO_BASE);
@@ -181,19 +187,49 @@
       }
       u.searchParams.set("encoding", "json");
       u.searchParams.set("compression", "none");
-      const resp = await fetch(u.toString(), {
-        headers: { "Authorization": "Basic " + btoa(dbKey + ":") }
-      });
-      if (resp.status === 401) throw new Error("Invalid Databento API key");
-      if (resp.status === 429) { await new Promise(r => setTimeout(r, 3000)); return dbnGet(endpoint, dbKey, params); }
-      if (!resp.ok) {
-        const txt = await resp.text().catch(() => "");
-        throw new Error("Databento " + resp.status + ": " + txt.slice(0, 200));
+
+      const targetUrl = u.toString();
+      const authHeader = "Basic " + btoa(dbKey + ":");
+
+      // Try direct first (works if running locally or CORS is added), then proxy
+      const attempts = [
+        { url: targetUrl, label: "direct" },
+        { url: activeCorsProxy + encodeURIComponent(targetUrl), label: "proxy" },
+      ];
+
+      let lastErr = null;
+      for (const attempt of attempts) {
+        try {
+          const headers = { "Authorization": authHeader };
+          // allorigins doesn't forward auth headers, so embed in URL for proxy attempts
+          let fetchUrl = attempt.url;
+          if (attempt.label === "proxy" && activeCorsProxy.includes("allorigins")) {
+            // allorigins doesn't support auth headers; skip
+            continue;
+          }
+          const resp = await fetch(fetchUrl, { headers });
+          if (resp.status === 0) continue; // CORS block
+          if (resp.status === 401) throw new Error("Invalid Databento API key");
+          if (resp.status === 429) { await new Promise(r => setTimeout(r, 3000)); return dbnGet(endpoint, dbKey, params); }
+          if (!resp.ok) {
+            const txt = await resp.text().catch(() => "");
+            throw new Error("Databento " + resp.status + ": " + txt.slice(0, 200));
+          }
+          const text = await resp.text();
+          const lines = text.trim().split("\n").filter(Boolean);
+          const parsed = lines.map(l => { try { return JSON.parse(l); } catch(e) { return null; } }).filter(Boolean);
+          if (attempt.label === "proxy") {
+            console.log("[DBN] Using CORS proxy: " + activeCorsProxy);
+          }
+          return parsed;
+        } catch (e) {
+          // TypeError = CORS/network block; keep trying
+          if (e.message.includes("Invalid Databento") || e.message.includes("Databento ")) throw e;
+          lastErr = e;
+          console.log("[DBN] " + attempt.label + " failed: " + e.message);
+        }
       }
-      // Databento JSON returns newline-delimited JSON records
-      const text = await resp.text();
-      const lines = text.trim().split("\n").filter(Boolean);
-      return lines.map(l => { try { return JSON.parse(l); } catch(e) { return null; } }).filter(Boolean);
+      throw new Error("CORS blocked: Databento API cannot be reached from the browser. Use the Python scanner (scan_globex.py) and upload JSON results. Error: " + (lastErr ? lastErr.message : "network error"));
     }
 
     /* ── Futures product definitions ── */
@@ -784,6 +820,8 @@
         const products = FUTURES_PRODUCTS.filter(p => selectedProducts.includes(p.root));
         let stepIdx = 0;
         const totalSteps = products.reduce((s, p) => s + p.months.length, 0);
+        let corsVerified = false;
+        let scanErrors = [];
 
         for (const product of products) {
           for (const month of product.months) {
@@ -795,6 +833,7 @@
               // 1. Get historical bars
               console.log("[DBN] Fetching bars for " + symbol);
               const bars = await dbnGetBars(symbol, dbnKey);
+              corsVerified = true; // If we get here, CORS is working
               if (!bars.length || !bars[bars.length-1].c) {
                 console.log("[DBN] No bars for " + symbol);
                 continue;
@@ -930,8 +969,16 @@
 
             } catch (err) {
               console.error("[DBN] Error scanning " + symbol + ":", err);
+              scanErrors.push(symbol + ": " + err.message);
+              // If first call fails with CORS, abort early — no point trying all products
+              if (!corsVerified && (err.message.includes("CORS") || err.message.includes("Failed to fetch") || err.message.includes("NetworkError"))) {
+                throw new Error("CORS blocked: Databento API cannot be reached from the browser. Run scan_globex.py locally and upload the JSON results using the upload button. (" + err.message + ")");
+              }
             }
           }
+        }
+        if (!allResults.length && scanErrors.length) {
+          console.warn("[DBN] All scans had errors:", scanErrors);
         }
         return allResults;
       };
@@ -972,18 +1019,52 @@
         }
       }, [connected, dataSource]);
 
-      /* ── JSON upload ── */
+      /* ── JSON upload (supports both dashboard format and scan_globex.py output) ── */
       const loadFile = useCallback((file) => {
         setScanError(null);
         const r = new FileReader();
         r.onload = e => {
           try {
             const j = JSON.parse(e.target.result);
-            const arr = Array.isArray(j)?j:[j];
-            if (!arr.length||!arr[0].ticker) { setScanError("Invalid JSON format"); return; }
-            setRawData(arr); setLastUpdated(new Date());
+            let arr;
+
+            // Handle scan_globex.py output: { all_results: [...], top_50: [...] }
+            if (j && !Array.isArray(j) && (j.all_results || j.top_50)) {
+              const raw = j.all_results || j.top_50 || [];
+              arr = raw.map(r => ({
+                ticker: r.symbol || r.ticker || "",
+                direction: (r.type || r.direction || "").toLowerCase(),
+                spread_type: "standalone",
+                long_strike: r.strike_price || r.strike || 0,
+                long_exp: r.expiration || "",
+                long_price: r.settlement || r.mid_price || 0,
+                long_qty: 1,
+                short_strike: null, short_exp: null, short_price: null, short_qty: 0,
+                ratio: "standalone",
+                net_premium: -(r.settlement || r.mid_price || 0),
+                premium_neutral_pct: 0, gap_risk: 0,
+                cheapness: r.composite || r.cheapness || 0,
+                equidist_ratio: r.eq_score || r.equidist_ratio || 0,
+                iv_rv: r.iv_rv_score || r.iv_rv || 0,
+                hist_move_yield: r.hm_score || r.hist_move_yield || 0,
+                yield_3x: r.yield_3x || null,
+                tail_payoff: 0,
+                net_delta: 0, net_vega: 0, net_theta: 0,
+                score: r.composite || r.cheapness || 0,
+                source: "databento",
+                open_interest: r.open_interest || 0,
+                atrs_otm: r.atrs_otm || null,
+                sigmas_otm: r.sigmas_otm || null,
+              }));
+            } else {
+              arr = Array.isArray(j) ? j : [j];
+            }
+
+            if (!arr.length || !arr[0].ticker) { setScanError("Invalid JSON format — need 'ticker' field or scan_globex.py output"); return; }
+            const ranked = rankAll(arr, 100);
+            setRawData(ranked); setLastUpdated(new Date());
             setFilters({tickers:[],direction:"both",spreadType:"both",minCheapness:0,minScore:0});
-          } catch(err) { setScanError("Failed to parse JSON"); }
+          } catch(err) { setScanError("Failed to parse JSON: " + err.message); }
         };
         r.readAsText(file);
       }, []);
