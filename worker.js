@@ -1,8 +1,6 @@
 /*
  * Databento CORS Proxy — Cloudflare Worker
- *
- * Browser computes the Basic auth header and sends it as X-DBN-Auth.
- * Worker just forwards it as Authorization — no encoding needed here.
+ * Receives X-DBN-Key header, converts to Basic auth, forwards to Databento.
  */
 
 const ALLOWED_ORIGIN = "*";
@@ -10,13 +8,12 @@ const DATABENTO_BASE = "https://hist.databento.com";
 
 export default {
   async fetch(request) {
-    // Handle CORS preflight
     if (request.method === "OPTIONS") {
       return new Response(null, {
         headers: {
           "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
           "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, X-DBN-Auth",
+          "Access-Control-Allow-Headers": "Content-Type, X-DBN-Key",
           "Access-Control-Max-Age": "86400",
         },
       });
@@ -24,22 +21,22 @@ export default {
 
     try {
       const url = new URL(request.url);
-      const targetPath = url.pathname + url.search;
-      const targetUrl = DATABENTO_BASE + targetPath;
+      const targetUrl = DATABENTO_BASE + url.pathname + url.search;
 
-      // Browser sends pre-computed "Basic ..." in X-DBN-Auth header
-      const auth = request.headers.get("X-DBN-Auth") || "";
-      if (!auth) {
-        return new Response(JSON.stringify({ error: "Missing X-DBN-Auth header" }), {
+      const dbnKey = request.headers.get("X-DBN-Key") || "";
+      if (!dbnKey) {
+        return new Response(JSON.stringify({ error: "Missing X-DBN-Key header" }), {
           status: 400,
           headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": ALLOWED_ORIGIN },
         });
       }
 
-      // Forward to Databento — just pass the auth through as-is
+      const authString = "Basic " + btoa(dbnKey + ":");
+
+      // Forward to Databento — NO Content-Type on GET (was causing 401)
       const resp = await fetch(targetUrl, {
         method: request.method,
-        headers: { "Authorization": auth },
+        headers: { "Authorization": authString },
         body: request.method !== "GET" ? await request.text() : undefined,
       });
 
