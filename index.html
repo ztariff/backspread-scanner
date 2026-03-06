@@ -197,7 +197,7 @@
         const url = base + fullPath;
         console.log("[DBN] Proxy request: " + url.split("?")[0]);
         const resp = await fetch(url, {
-          headers: { "X-DBN-Key": dbKey }
+          headers: { "X-DBN-Auth": "Basic " + btoa(dbKey + ":") }
         });
         if (resp.status === 401) throw new Error("Invalid Databento API key");
         if (resp.status === 429) { await new Promise(r => setTimeout(r, 3000)); return dbnGet(endpoint, dbKey, params); }

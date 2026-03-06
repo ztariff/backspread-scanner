@@ -1,17 +1,11 @@
 /*
  * Databento CORS Proxy — Cloudflare Worker
  *
- * Deploy for free at https://workers.cloudflare.com
- *
- * Steps:
- *   1. Go to https://dash.cloudflare.com → Workers & Pages → Create
- *   2. Click "Create Worker"
- *   3. Paste this entire file, click "Deploy"
- *   4. Copy your worker URL (e.g. https://my-worker.yourname.workers.dev)
- *   5. Paste it into the "Proxy URL" field in the scanner dashboard
+ * Browser computes the Basic auth header and sends it as X-DBN-Auth.
+ * Worker just forwards it as Authorization — no encoding needed here.
  */
 
-const ALLOWED_ORIGIN = "*"; // Lock this down to your GitHub Pages URL if you want
+const ALLOWED_ORIGIN = "*";
 const DATABENTO_BASE = "https://hist.databento.com";
 
 export default {
@@ -22,7 +16,7 @@ export default {
         headers: {
           "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
           "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Authorization, Content-Type, X-DBN-Key",
+          "Access-Control-Allow-Headers": "Content-Type, X-DBN-Auth",
           "Access-Control-Max-Age": "86400",
         },
       });
@@ -30,35 +24,25 @@ export default {
 
     try {
       const url = new URL(request.url);
-
-      // The path after the worker URL maps to Databento API
-      // e.g., /v0/timeseries.get_range?... → https://hist.databento.com/v0/timeseries.get_range?...
       const targetPath = url.pathname + url.search;
       const targetUrl = DATABENTO_BASE + targetPath;
 
-      // Get the API key from the X-DBN-Key header (avoids exposing in URL)
-      const dbnKey = request.headers.get("X-DBN-Key") || "";
-      if (!dbnKey) {
-        return new Response(JSON.stringify({ error: "Missing X-DBN-Key header" }), {
+      // Browser sends pre-computed "Basic ..." in X-DBN-Auth header
+      const auth = request.headers.get("X-DBN-Auth") || "";
+      if (!auth) {
+        return new Response(JSON.stringify({ error: "Missing X-DBN-Auth header" }), {
           status: 400,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-          },
+          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": ALLOWED_ORIGIN },
         });
       }
 
-      // Forward to Databento with proper auth
+      // Forward to Databento — just pass the auth through as-is
       const resp = await fetch(targetUrl, {
         method: request.method,
-        headers: {
-          "Authorization": "Basic " + btoa(dbnKey + ":"),
-          "Content-Type": "application/json",
-        },
+        headers: { "Authorization": auth },
         body: request.method !== "GET" ? await request.text() : undefined,
       });
 
-      // Return response with CORS headers
       const body = await resp.text();
       return new Response(body, {
         status: resp.status,
@@ -72,10 +56,7 @@ export default {
     } catch (err) {
       return new Response(JSON.stringify({ error: err.message }), {
         status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-        },
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": ALLOWED_ORIGIN },
       });
     }
   },
