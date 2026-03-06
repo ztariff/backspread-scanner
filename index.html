@@ -171,65 +171,64 @@
     /* ══════════════════════════════════════════════════════════════
        DATABENTO API CLIENT (Futures)
        ══════════════════════════════════════════════════════════════ */
-    const DATABENTO_BASE = "https://hist.databento.com/v0";
-    // CORS proxy needed because Databento API doesn't send Access-Control-Allow-Origin headers
-    const CORS_PROXIES = [
-      "https://corsproxy.io/?",
-      "https://api.allorigins.win/raw?url=",
-    ];
-    let activeCorsProxy = CORS_PROXIES[0];
+    const DATABENTO_DIRECT = "https://hist.databento.com/v0";
+
+    // proxyUrl is set by the user in the UI — points to their Cloudflare Worker
+    let _dbnProxyUrl = localStorage.getItem("dbn_proxy_url") || "";
 
     async function dbnGet(endpoint, dbKey, params={}) {
-      const u = new URL(endpoint, DATABENTO_BASE);
+      // Build the query string
+      const qs = new URLSearchParams();
       for (const [k,v] of Object.entries(params)) {
-        if (Array.isArray(v)) u.searchParams.set(k, v.join(","));
-        else u.searchParams.set(k, String(v));
+        if (Array.isArray(v)) qs.set(k, v.join(","));
+        else qs.set(k, String(v));
       }
-      u.searchParams.set("encoding", "json");
-      u.searchParams.set("compression", "none");
+      qs.set("encoding", "json");
+      qs.set("compression", "none");
 
-      const targetUrl = u.toString();
-      const authHeader = "Basic " + btoa(dbKey + ":");
+      // Determine the path (e.g. /v0/timeseries.get_range)
+      const path = endpoint.replace(DATABENTO_DIRECT, "");
+      const fullPath = (path.startsWith("/") ? path : "/v0/" + path) + "?" + qs.toString();
 
-      // Try direct first (works if running locally or CORS is added), then proxy
-      const attempts = [
-        { url: targetUrl, label: "direct" },
-        { url: activeCorsProxy + encodeURIComponent(targetUrl), label: "proxy" },
-      ];
-
-      let lastErr = null;
-      for (const attempt of attempts) {
-        try {
-          const headers = { "Authorization": authHeader };
-          // allorigins doesn't forward auth headers, so embed in URL for proxy attempts
-          let fetchUrl = attempt.url;
-          if (attempt.label === "proxy" && activeCorsProxy.includes("allorigins")) {
-            // allorigins doesn't support auth headers; skip
-            continue;
-          }
-          const resp = await fetch(fetchUrl, { headers });
-          if (resp.status === 0) continue; // CORS block
-          if (resp.status === 401) throw new Error("Invalid Databento API key");
-          if (resp.status === 429) { await new Promise(r => setTimeout(r, 3000)); return dbnGet(endpoint, dbKey, params); }
-          if (!resp.ok) {
-            const txt = await resp.text().catch(() => "");
-            throw new Error("Databento " + resp.status + ": " + txt.slice(0, 200));
-          }
-          const text = await resp.text();
-          const lines = text.trim().split("\n").filter(Boolean);
-          const parsed = lines.map(l => { try { return JSON.parse(l); } catch(e) { return null; } }).filter(Boolean);
-          if (attempt.label === "proxy") {
-            console.log("[DBN] Using CORS proxy: " + activeCorsProxy);
-          }
-          return parsed;
-        } catch (e) {
-          // TypeError = CORS/network block; keep trying
-          if (e.message.includes("Invalid Databento") || e.message.includes("Databento ")) throw e;
-          lastErr = e;
-          console.log("[DBN] " + attempt.label + " failed: " + e.message);
+      // If proxy URL is set, route through it (Cloudflare Worker)
+      if (_dbnProxyUrl) {
+        const base = _dbnProxyUrl.replace(/\/+$/, "");
+        const url = base + fullPath;
+        console.log("[DBN] Proxy request: " + url.split("?")[0]);
+        const resp = await fetch(url, {
+          headers: { "X-DBN-Key": dbKey }
+        });
+        if (resp.status === 401) throw new Error("Invalid Databento API key");
+        if (resp.status === 429) { await new Promise(r => setTimeout(r, 3000)); return dbnGet(endpoint, dbKey, params); }
+        if (!resp.ok) {
+          const txt = await resp.text().catch(() => "");
+          throw new Error("Databento " + resp.status + ": " + txt.slice(0, 200));
         }
+        const text = await resp.text();
+        const lines = text.trim().split("\n").filter(Boolean);
+        return lines.map(l => { try { return JSON.parse(l); } catch(e) { return null; } }).filter(Boolean);
       }
-      throw new Error("CORS blocked: Databento API cannot be reached from the browser. Use the Python scanner (scan_globex.py) and upload JSON results. Error: " + (lastErr ? lastErr.message : "network error"));
+
+      // No proxy — try direct (will fail on GitHub Pages due to CORS)
+      const directUrl = DATABENTO_DIRECT + fullPath;
+      console.log("[DBN] Direct request: " + directUrl.split("?")[0]);
+      try {
+        const resp = await fetch(directUrl, {
+          headers: { "Authorization": "Basic " + btoa(dbKey + ":") }
+        });
+        if (resp.status === 401) throw new Error("Invalid Databento API key");
+        if (resp.status === 429) { await new Promise(r => setTimeout(r, 3000)); return dbnGet(endpoint, dbKey, params); }
+        if (!resp.ok) {
+          const txt = await resp.text().catch(() => "");
+          throw new Error("Databento " + resp.status + ": " + txt.slice(0, 200));
+        }
+        const text = await resp.text();
+        const lines = text.trim().split("\n").filter(Boolean);
+        return lines.map(l => { try { return JSON.parse(l); } catch(e) { return null; } }).filter(Boolean);
+      } catch (e) {
+        if (e.message.includes("Invalid Databento") || e.message.includes("Databento ")) throw e;
+        throw new Error("CORS blocked — you need a proxy. Deploy worker.js to Cloudflare Workers (free) and paste the URL in the Proxy URL field. See worker.js in the repo.");
+      }
     }
 
     /* ── Futures product definitions ── */
@@ -454,7 +453,7 @@
     function findCheapOptions(chain, S, rv, mm, isFutures) {
       const cands = [];
       const all = [...chain.calls, ...chain.puts];
-      console.log("[v3.1] findCheapOptions: S="+S+", total contracts="+all.length+", futures="+!!isFutures);
+      console.log("[v3.2] findCheapOptions: S="+S+", total contracts="+all.length+", futures="+!!isFutures);
       for (const c of all) {
         if (c.option_type==="call"&&c.strike<=S) continue;
         if (c.option_type==="put"&&c.strike>=S) continue;
@@ -471,7 +470,7 @@
           iv_rv_ratio:ir.ratio, move_would_yield:hm.yield, move_yield_ratio:hm.yieldRatio,
           yield_3x: hm.yield3x || null, underlying_price:S });
       }
-      console.log("[v3.1] findCheapOptions: "+cands.length+" cheap candidates found");
+      console.log("[v3.2] findCheapOptions: "+cands.length+" cheap candidates found");
       cands.sort((a,b) => b.cheapness-a.cheapness);
       return cands;
     }
@@ -717,6 +716,7 @@
       const _DBN_KEY = "db-qsqvF3QpT7mr6M75DyQC5N33NcTV5";
       const [apiKey, setApiKey] = useState(_KEY);
       const [dbnKey, setDbnKey] = useState(_DBN_KEY);
+      const [proxyUrl, setProxyUrl] = useState(localStorage.getItem("dbn_proxy_url") || "");
       const [connected, setConnected] = useState(true);
       const [dataSource, setDataSource] = useState("polygon"); // "polygon" | "databento"
       const [tickerInput, setTickerInput] = useState("SPY,QQQ,TSLA,NVDA,AAPL,AMD");
@@ -739,6 +739,13 @@
       const histCache = useRef({});
       const scanTimerRef = useRef(null);
       const scanRef = useRef(false);
+
+      /* ── Sync proxy URL to module var + localStorage ── */
+      useEffect(() => {
+        _dbnProxyUrl = proxyUrl;
+        if (proxyUrl) localStorage.setItem("dbn_proxy_url", proxyUrl);
+        else localStorage.removeItem("dbn_proxy_url");
+      }, [proxyUrl]);
 
       /* ── Market status ticker ── */
       useEffect(() => {
@@ -1135,7 +1142,7 @@
           <div style={{display:"flex",flexWrap:"wrap",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:16}}>
             <div>
               <h1 style={{fontSize:22,fontWeight:"bold",margin:0}}>{"\u26A1"} Ratio Backspread Scanner</h1>
-              <p style={{fontSize:12,color:"#94a3b8",marginTop:2}}>Taleb-style convexity harvesting &mdash; v3.1</p>
+              <p style={{fontSize:12,color:"#94a3b8",marginTop:2}}>Taleb-style convexity harvesting &mdash; v3.2</p>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",backgroundColor:mktDot}}></span>
@@ -1168,7 +1175,7 @@
                 <>
                   <div style={{width:1,height:20,backgroundColor:"#334155"}}></div>
                   <span style={{fontSize:13,color:"#34d399"}}>{"\u2713"} Live</span>
-                  <span style={{fontSize:10,color:"#475569"}}>v3.1</span>
+                  <span style={{fontSize:10,color:"#475569"}}>v3.2</span>
                 </>
               )}
             </div>
@@ -1236,6 +1243,16 @@
                   style={{padding:"3px 10px",borderRadius:4,fontSize:11,cursor:"pointer",border:"1px solid #334155",backgroundColor:"#1e293b",color:"#94a3b8"}}>
                   Clear
                 </button>
+              </div>
+              <div style={{marginTop:12,paddingTop:10,borderTop:"1px solid #1e293b",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                <span style={{fontSize:12,color:"#94a3b8"}}>Proxy URL:</span>
+                <input type="text" value={proxyUrl} onChange={e=>setProxyUrl(e.target.value.trim())}
+                  placeholder="https://your-worker.yourname.workers.dev"
+                  style={{flex:1,minWidth:240,fontSize:12}} />
+                <span style={{fontSize:10,color:proxyUrl?"#34d399":"#ef4444"}}>{proxyUrl ? "\u2713 Set" : "\u2717 Required for browser scanning"}</span>
+              </div>
+              <div style={{fontSize:10,color:"#475569",marginTop:4}}>
+                Deploy <a href="https://github.com/ztariff/backspread-scanner/blob/main/worker.js" target="_blank" style={{color:"#60a5fa"}}>worker.js</a> to <a href="https://dash.cloudflare.com/" target="_blank" style={{color:"#60a5fa"}}>Cloudflare Workers</a> (free) and paste the URL above. Databento API blocks browser requests without a proxy.
               </div>
             </div>
           )}
