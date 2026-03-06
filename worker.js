@@ -1,10 +1,11 @@
 /*
  * Databento CORS Proxy — Cloudflare Worker
- * Receives X-DBN-Key header, converts to Basic auth, forwards to Databento.
+ * Visit /debug to test if auth is working
  */
 
 const ALLOWED_ORIGIN = "*";
 const DATABENTO_BASE = "https://hist.databento.com";
+const DBN_KEY = "db-MQACcG6YCgCiTmJ87NUWVBhcnxAyx";
 
 export default {
   async fetch(request) {
@@ -21,24 +22,39 @@ export default {
 
     try {
       const url = new URL(request.url);
-      const targetUrl = DATABENTO_BASE + url.pathname + url.search;
 
-      const dbnKey = request.headers.get("X-DBN-Key") || "";
-      if (!dbnKey) {
-        return new Response(JSON.stringify({ error: "Missing X-DBN-Key header" }), {
-          status: 400,
+      // Debug endpoint — test auth against Databento
+      if (url.pathname === "/debug") {
+        const testUrl = DATABENTO_BASE + "/v0/metadata.list_datasets?encoding=json";
+        const authStr = "Basic " + btoa(DBN_KEY + ":");
+
+        // Try with Headers object
+        const headers = new Headers();
+        headers.set("Authorization", authStr);
+
+        const resp = await fetch(testUrl, { headers });
+        const body = await resp.text();
+
+        return new Response(JSON.stringify({
+          test_url: testUrl,
+          auth_header_sent: authStr.slice(0, 20) + "...",
+          databento_status: resp.status,
+          databento_response: body.slice(0, 500),
+        }, null, 2), {
           headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": ALLOWED_ORIGIN },
         });
       }
 
-      const authString = "Basic " + btoa(dbnKey + ":");
+      const targetUrl = DATABENTO_BASE + url.pathname + url.search;
 
-      // Forward to Databento — NO Content-Type on GET (was causing 401)
-      const resp = await fetch(targetUrl, {
+      // Use explicit Headers object (workaround for CF stripping Authorization)
+      const headers = new Headers();
+      headers.set("Authorization", "Basic " + btoa(DBN_KEY + ":"));
+
+      const resp = await fetch(new Request(targetUrl, {
         method: request.method,
-        headers: { "Authorization": authString },
-        body: request.method !== "GET" ? await request.text() : undefined,
-      });
+        headers: headers,
+      }));
 
       const body = await resp.text();
       return new Response(body, {
