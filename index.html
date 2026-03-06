@@ -187,7 +187,8 @@
       qs.set("compression", "none");
 
       // Determine the path (e.g. /v0/timeseries.get_range)
-      const path = endpoint.replace(DATABENTO_DIRECT, "");
+      // Strip only the domain, keep /v0 in the path
+      const path = endpoint.replace("https://hist.databento.com", "");
       const fullPath = (path.startsWith("/") ? path : "/v0/" + path) + "?" + qs.toString();
 
       // If proxy URL is set, route through it (Cloudflare Worker)
