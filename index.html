@@ -1185,7 +1185,7 @@
               ) : (
                 <span style={{fontSize:12,color:"#94a3b8"}}>Products: {selectedProducts.length} selected</span>
               )}
-              <button onClick={doScan} disabled={scanning}
+              <button onClick={() => { console.log("[SCAN] Button clicked, dataSource="+dataSource); doScan().catch(e => { console.error("[SCAN] Fatal:", e); setScanError(e.message); setScanning(false); scanRef.current=false; }); }} disabled={scanning}
                 style={{padding:"6px 16px",borderRadius:6,border:"none",fontWeight:600,fontSize:13,cursor:scanning?"not-allowed":"pointer",
                   backgroundColor:scanning?"#334155":isFutures?"#f59e0b":"#3b82f6",color:scanning?"#64748b":isFutures?"#000":"#fff"}}>
                 {scanning ? "Scanning..." : "Scan Now"}
