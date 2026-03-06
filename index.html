@@ -174,7 +174,7 @@
     const DATABENTO_DIRECT = "https://hist.databento.com/v0";
 
     // proxyUrl is set by the user in the UI — points to their Cloudflare Worker
-    let _dbnProxyUrl = localStorage.getItem("dbn_proxy_url") || "";
+    let _dbnProxyUrl = localStorage.getItem("dbn_proxy_url") || "https://spring-term-f18.nhaddad.workers.dev";
 
     async function dbnGet(endpoint, dbKey, params={}) {
       // Build the query string
@@ -716,7 +716,7 @@
       const _DBN_KEY = "db-qsqvF3QpT7mr6M75DyQC5N33NcTV5";
       const [apiKey, setApiKey] = useState(_KEY);
       const [dbnKey, setDbnKey] = useState(_DBN_KEY);
-      const [proxyUrl, setProxyUrl] = useState(localStorage.getItem("dbn_proxy_url") || "");
+      const [proxyUrl, setProxyUrl] = useState(localStorage.getItem("dbn_proxy_url") || "https://spring-term-f18.nhaddad.workers.dev");
       const [connected, setConnected] = useState(true);
       const [dataSource, setDataSource] = useState("polygon"); // "polygon" | "databento"
       const [tickerInput, setTickerInput] = useState("SPY,QQQ,TSLA,NVDA,AAPL,AMD");
